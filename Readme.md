@@ -1,6 +1,6 @@
 # What's that
 
-This is a fork of *poApps* developed and maintained by [Paul Obermeier](http://www.posoft.de/contact.html).
+This is a fork of *poApps* applications. The *poApps* is developed and maintained by [Paul Obermeier](http://www.posoft.de/contact.html). Changes made to the original code are marked with "`# (apl`" and "`# apl)`" comments.
 
 The only purpose of this fork is to provide the comparison of directories by lists.
 
@@ -22,11 +22,11 @@ Thus, you compare a batch of directories which may depend on each other in vario
 
 You'll find it convenient to merge your saved prior sessions into the two *.podiff* files, for this "all in one" session to be saved as well.
 
-As a small bonus, the fork allows to select a color scheme of *poApps* application.
+As a little bonus, the fork allows to select a color scheme of *poApps* application.
 
 # How to run
 
-Unpack the fork into a directory. Then try and run the command in a console:
+Unpack the fork into a directory. Then run the following command in a console:
 
 `
 tclsh poApps.tcl
@@ -39,7 +39,7 @@ To change a color scheme of *poApps*, run it with options:
 
   * `--cs nn` where `nn` means a color scheme; may be from `-2` to `47`
   * `--hue nn` where `nn` means a hue; may be from `-99` to `99`
-  
+
 For example:
 
 `
@@ -50,6 +50,6 @@ tclsh poApps.tcl -cs 21 -hue 25
 
 # Restriction
 
-In this mode, you can not copy nor move the "only" files because of their directories' discrepancy. An attempt to do this results in a Tcl error message.
+In this mode, you can not copy nor move the "*only* left / right" files because of their directories' discrepancy. An attempt to do this results in a Tcl error message. But you can view these files in *poApps* and decide what to do with them.
 
-You can copy or move only the "different left / right" files.
+You can copy or move the "*different* left / right" files of related directories, with two or three key pressings. It's the main and cool feature of this fork.

@@ -1421,8 +1421,8 @@ set optPrintHelpFile false
 set optPrintHelpAll  false
 set optNoSaveOnExit  false
 set optCfgDir        [file join "~" ".[poApps GetAppName]"]
-set optColorScheme   14
-set optHue           -20
+set optColorScheme   6
+set optHue           -10
 set argList          [list]
 
 # Parse command line for general options.
@@ -1526,7 +1526,7 @@ while { $curArg < $argc } {
 apave::initWM
 apave::obj csSet $optColorScheme
 if {$optHue} {apave::obj csToned $optColorScheme $optHue}
-#ARGS1: -cs 21 -hue 25
+#ARGS1: -cs 6 -hue -10
 # apl)
 
 # Try to load settings file.
