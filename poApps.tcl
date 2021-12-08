@@ -1421,7 +1421,7 @@ set optPrintHelpFile false
 set optPrintHelpAll  false
 set optNoSaveOnExit  false
 set optCfgDir        [file join "~" ".[poApps GetAppName]"]
-set optColorScheme   6
+set optColorScheme   0
 set optHue           -10
 set argList          [list]
 
@@ -1523,6 +1523,9 @@ while { $curArg < $argc } {
 }
 
 # (apl
+catch {
+  source [file join [file dirname [info script]] Externals apave pickers color clrpick.tcl]
+}
 apave::initWM
 apave::obj csSet $optColorScheme
 if {$optHue} {apave::obj csToned $optColorScheme $optHue}

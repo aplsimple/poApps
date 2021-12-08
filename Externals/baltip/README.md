@@ -12,10 +12,11 @@ The original code has been modified to make the tip:
   * be displayed under the host widget
   * be displayed as a stand-alone balloon message at given coordinates
   * be displayed with given opacity, font, paddings, colors
+  * have -image option
   * have configure/cget etc. wrapped in Tcl ensemble for convenience
 
 The video introduction to *baltip* is presented by
- [baltip-1.0.mp4](https://github.com/aplsimple/baltip/releases/download/baltip-1.0/baltip-1.0.mp4) (11 Mb).
+ [baltip-1.1.mp4](https://github.com/aplsimple/baltip/releases/download/baltip-1.1/baltip-1.1.mp4) (4 Mb).
 
 Below are several pictures just to glance at *baltip*.
 
@@ -136,28 +137,29 @@ For example:
 
 Below are listed the *baltip* options that are set with `tip` and `configure` and got with `cget`:
 
- **-on** - switches all tips on/off;
- **-per10** - a time of exposition per 10 characters (in millisec.); "0" means "eternal";
- **-fade** - a time of fading (in millisec.);
- **-pause** - a pause before displaying tips (in millisec.);
- **-alpha** - an opacity (from 0.0 to 1.0);
- **-fg** - foreground of tip;
- **-bg** - background of tip;
- **-bd** - borderwidth of tip;
- **-font** - font attributes;
- **-padx** - X padding for text;
- **-pady** - Y padding for text;
- **-padding** - padding for pack;
- **-under** - if >= 0, sets the tip under the widget, else under the pointer;
- **-bell** - if true, rings at displaying.
+ * `-on` - switches all tips on/off;
+ * `-per10` - a time of exposition per 10 characters (in millisec.); "0" means "eternal";
+ * `-fade` - a time of fading (in millisec.);
+ * `-pause` - a pause before displaying tips (in millisec.);
+ * `-alpha` - an opacity (from 0.0 to 1.0);
+ * `-fg` - foreground of tip;
+ * `-bg` - background of tip;
+ * `-bd` - borderwidth of tip;
+ * `-font` - font attributes;
+ * `-padx` - X padding for text;
+ * `-pady` - Y padding for text;
+ * `-padding` - padding for pack;
+ * `-under` - if >= 0, sets the tip under the widget, else under the pointer;
+ * `-image` - image's attributes;
+ * `-bell` - if true, rings at displaying.
 
 The following options are special:
 
- **-global** - if true, applies the settings to all registered tips;
- **-force** - if true, forces the display by 'tip' command;
- **-index** - index of menu item to tip;
- **-tag** - name of text tag to tip;
- **-geometry** - geometry (+X+Y) of the balloon.
+ * `-global` - if true, applies the settings to all registered tips;
+ * `-force` - if true, forces the display by 'tip' command;
+ * `-index` - index of menu item to tip;
+ * `-tag` - name of text tag to tip;
+ * `-geometry` - geometry (+X+Y) of the balloon.
 
 If `-global yes` option is used alone, it applies all global options to all registered tips. If `-global yes` option is used along with other options, only those options are applied to all registered tips.
 
@@ -179,8 +181,10 @@ Also, you can test *baltip* with *test2_pave.tcl* of [apave package](https://chi
 
 ## Links
 
-  * [Demo of baltip v1.0](https://github.com/aplsimple/baltip/releases/download/baltip-1.0/baltip-1.0.mp4)
+  * [Demo of baltip v1.1](https://github.com/aplsimple/baltip/releases/download/baltip-1.1/baltip-1.1.mp4)
 
   * [Reference](https://aplsimple.github.io/en/tcl/baltip/baltip.html)
 
-  * [Source](https://chiselapp.com/user/aplsimple/repository/baltip/download) (baltip.zip)
+  * [Source at chiselapp](https://chiselapp.com/user/aplsimple/repository/baltip/download) (baltip.zip)
+
+  * [Source at github](https://github.com/aplsimple/baltip)

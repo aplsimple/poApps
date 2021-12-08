@@ -39,6 +39,15 @@ proc ::chbComm {}  {
 
 # _______________________________________________________________________ #
 
+set tclimg {iVBORw0KGgoAAAANSUhEUgAAAEgAAABICAMAAABiM0N1AAAABlBMVEUAAAC1CgZ1fsiLAAAAAnRS
+TlMA/1uRIrUAAADmSURBVFjD3djLEsIgDIXhc97/pd24aFXIhR9xzJK23zApJaHSP4ZNOYYYAPIz
+GGXN8TUQpA35QyBI3fEwEKQC2YTjOCAmA5lxbASyGQhybAY64bjhiEmzmOXzOtz9KIbD1f2vkep9
+TnNr3OUEyzMNBas866jtqOR4vyPKUYHBnBy06OjXHFGOKEdzp9hLTYtI0Vnu8GInDUEd59w500eP
+ihFwOjh64HndRs6fBnln34QGpWV0UB/PpwdpFQoSdLlyu+ntiSjRWSh8Yd+GUn1KAsr1KXlIq1Cy
+nM9bjXuFJSBBEPGL7AEx9we9fjFHxQAAAABJRU5ErkJggg==}
+
+image create photo TEST_TCL_IMAGE -data $tclimg
+
 button .b -text Hello -command ::butComm
 
 set geo +999999+30  ;# 999999 to get it the most right
@@ -94,7 +103,8 @@ pack .b .l .b2 .t .cb
 . configure -menu .menu
 
 ::baltip::configure -per10 1200 -fade 300 -font {-size 11}
-::baltip::tip .b "Hello, world!\nIt's me o Lord!" -under 0
+::baltip::tip .b "Hello, world!\nIt's me o Lord!" -under 0 -per10 3000 \
+  -fg white -bg black -alpha 0.9 -image {TEST_TCL_IMAGE -compound left}
 ::baltip::tip .l "Calls a popup tearoff menu.\nThis tip is switched by the button\nto an alert/message."
 ::baltip::tip .b2 "Displays a message at top right corner, having\
   \ncoordinates set with \"-geometry $geo\" option."
@@ -115,4 +125,4 @@ pack .b .l .b2 .t .cb
 # _______________________________________________________________________ #
 
 catch {source [file join ../transpops transpops.tcl]}
-catch {::transpops::run .bak/transpops.txt {<Control-q> <Alt-q>} .}
+catch {::transpops::run ../transpops/demos/baltip/transpops.txt {<Alt-t> <Alt-y>} .}

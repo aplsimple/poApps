@@ -42,6 +42,9 @@ source [file join [file dirname [info script]] apave.tcl]
 namespace eval ::apave {
 }
 
+
+# ________________________ APaveDialog class _________________________ #
+
 oo::class create ::apave::APaveDialog {
 
   superclass ::apave::APave
@@ -96,9 +99,10 @@ oo::class create ::apave::APaveDialog {
     if {[llength [self next]]} next
   }
 
-  #########################################################################
-  #
-  # Standard dialogs:
+
+
+# ________________________ Standard dialogs _________________________ #
+
   #  ok               - dialog with button OK
   #  okcancel         - dialog with buttons OK, Cancel
   #  yesno            - dialog with buttons YES, NO
@@ -228,16 +232,569 @@ oo::class create ::apave::APaveDialog {
     return [my Query $icon $ttl $msg $apave_msc_bttns But$defb {} [my PrepArgs $args]]
   }
 
+# ________________________ Progress for splash _________________________ #
+
   #########################################################################
 
-  method Pdg {name} {
+  method progress_Begin {type wprn ttl msg1 msg2 maxvalue args} {
+    # Creates and shows a progress window. Fit for splash screens.
+    #   type - any word(s)
+    #   wprn - parent window
+    #   ttl - title message
+    #   msg1 - top message
+    #   msg2 - bottom message
+    #   maxvalue - maximum value
+    #   args - additional attributes of the progress bar
+    # 
+    # If type={}, widgetType method participates too in progress_Go, and also
+    # progress_End puts out a little statistics.
+    # 
+    # See also: APave::widgetType, progress_Go, progress_End
 
-    # Gets a value of _pdg(name).
-
-    return $_pdg($name)
+    set ::apave::_AP_VARS(win) .proSplashScreen
+    set qdlg $::apave::_AP_VARS(win)
+    set atr1 "-maximum 100 -value 0 -mode determinate -length 300 -orient horizontal"
+    set widlist [list \
+      "fra - - - - {pack } {-h 10}" \
+      ".Lab1SplashScreen - - - - {pack} {-t {$msg1}}" \
+      ".ProgSplashScreen - - - - {pack} {$atr1 $args}" \
+      ".Lab2SplashScreen - - - - {pack -anchor w} {-t {$msg2}}" \
+      ]
+    set win [my makeWindow $qdlg.fra $ttl]
+    set widlist [my paveWindow $qdlg.fra $widlist]
+    ::tk::PlaceWindow $win widget $wprn
+    my showWindow $win 0 1
+    update
+    set ::apave::_AP_VARS(ProSplash,type) $type
+    set ::apave::_AP_VARS(ProSplash,win) $win
+    set ::apave::_AP_VARS(ProSplash,wid1) [my Lab1SplashScreen]
+    set ::apave::_AP_VARS(ProSplash,wid2) [my ProgSplashScreen]
+    set ::apave::_AP_VARS(ProSplash,wid3) [my Lab2SplashScreen]
+    set ::apave::_AP_VARS(ProSplash,val1) 0
+    set ::apave::_AP_VARS(ProSplash,val2) 0
+    set ::apave::_AP_VARS(ProSplash,value) 0
+    set ::apave::_AP_VARS(ProSplash,curvalue) 0
+    set ::apave::_AP_VARS(ProSplash,maxvalue) $maxvalue
+    set ::apave::_AP_VARS(ProSplash,after) [list]
+    # 'after' should be postponed, as 'update' messes it up
+    rename ::after ::ProSplash_after
+    proc ::after {args} {
+      lappend ::apave::_AP_VARS(ProSplash,after) $args
+    }
   }
 
   #########################################################################
+
+  method progress_Go {value {msg1 ""} {msg2 ""}} {
+    # Updates a progress window.
+    #   value -  current value of the progress bar
+    #   msg1 - top message
+    #   msg2 - bottom message
+    # 
+    # Returns current percents (value) of progress.
+    # If it reaches 100, the progress_Go may continue from 0.
+    # 
+    # See also: progress_Begin
+
+    set ::apave::_AP_VARS(ProSplash,val1) $value
+    incr ::apave::_AP_VARS(ProSplash,val2)
+    set val [expr {min(100,int(100*$value/$::apave::_AP_VARS(ProSplash,maxvalue)))}]
+    if {$val!=$::apave::_AP_VARS(ProSplash,value)} {
+      set ::apave::_AP_VARS(ProSplash,value) $val
+      $::apave::_AP_VARS(ProSplash,wid2) configure -value $val
+      if {$msg1 ne {}} {
+        $::apave::_AP_VARS(ProSplash,wid1) configure -text $msg1
+      }
+      if {$msg2 ne {}} {
+        $::apave::_AP_VARS(ProSplash,wid3) configure -text $msg2
+      }
+      update
+    }
+    return $val
+  }
+
+  #########################################################################
+
+  method progress_End {} {
+    # Destroys a progress window.
+    # See also: progress_Begin
+
+    variable ::apave::_AP_VARS
+    catch {
+      destroy $::apave::_AP_VARS(ProSplash,win)
+      rename ::after {}
+      rename ::ProSplash_after ::after
+      foreach aftargs $::apave::_AP_VARS(ProSplash,after) {
+        after {*}$aftargs
+      }
+      if {$::apave::_AP_VARS(ProSplash,type) eq {}} {
+        puts "Splash statistics: \
+          \n  \"maxvalue\": $::apave::_AP_VARS(ProSplash,maxvalue) \
+          \n  curr.value: $::apave::_AP_VARS(ProSplash,val1) \
+          \n  steps made: $::apave::_AP_VARS(ProSplash,val2)"
+      }
+      unset ::apave::_AP_VARS(ProSplash,type)
+      unset ::apave::_AP_VARS(ProSplash,win)
+      unset ::apave::_AP_VARS(ProSplash,wid1)
+      unset ::apave::_AP_VARS(ProSplash,wid2)
+      unset ::apave::_AP_VARS(ProSplash,wid3)
+      unset ::apave::_AP_VARS(ProSplash,val1)
+      unset ::apave::_AP_VARS(ProSplash,val2)
+      unset ::apave::_AP_VARS(ProSplash,value)
+      unset ::apave::_AP_VARS(ProSplash,curvalue)
+      unset ::apave::_AP_VARS(ProSplash,maxvalue)
+      unset ::apave::_AP_VARS(ProSplash,after)
+    }
+  }
+
+# ________________________ Text utilities _________________________ #
+
+  #########################################################################
+
+  method pasteText {txt} {
+
+    # Removes a selection at pasting.
+    #   txt - text's path
+    #
+    # The absence of this feature is very perpendicular of Tk's paste.
+
+    set err [catch {$txt tag ranges sel} sel]
+    if {!$err && [llength $sel]==2} {
+      lassign $sel pos1 pos2
+      set pos [$txt index insert]
+      if {[$txt compare $pos >= $pos1] && [$txt compare $pos <= $pos2]} {
+        $txt delete $pos1 $pos2
+      }
+    }
+  }
+
+  #########################################################################
+
+  method doubleText {txt {dobreak 1}} {
+
+    # Doubles a current line or a selection of text widget.
+    #   txt - text's path
+    #   dobreak - if true, means "return -code break"
+    #
+    # The *dobreak=true* allows to break the Tk processing of keypresses
+    # such as Ctrl+D.
+    #
+    # If not set, the text widget is identified as `my TexM`.
+
+    if {$txt eq ""} {set txt [my TexM]}
+    set err [catch {$txt tag ranges sel} sel]
+    if {!$err && [llength $sel]==2} {
+      lassign $sel pos pos2
+      set pos3 "insert"  ;# single selection
+    } else {
+      lassign [my GetLinePosition $txt insert] pos pos2  ;# current line
+      set pos3 $pos2
+    }
+    set duptext [$txt get $pos $pos2]
+    $txt insert $pos3 $duptext
+    if {$dobreak} {return -code break}
+    return
+  }
+
+  #########################################################################
+
+  method deleteLine {txt {dobreak 1}} {
+
+    # Deletes a current line of text widget.
+    #   txt - text's path
+    #   dobreak - if true, means "return -code break"
+    #
+    # The *dobreak=true* allows to break the Tk processing of keypresses
+    # such as Ctrl+Y.
+    #
+    # If not set, the text widget is identified as `my TexM`.
+
+    if {$txt eq ""} {set txt [my TexM]}
+    lassign [my GetLinePosition $txt insert] linestart lineend
+    $txt delete $linestart $lineend
+    if {$dobreak} {return -code break}
+    return
+  }
+
+  #########################################################################
+
+  method linesMove {txt to {dobreak 1}} {
+
+    # Moves a current line or lines of selection up/down.
+    #   txt - text's path
+    #   to - direction (-1 means "up", +1 means "down")
+    #   dobreak - if true, means "return -code break"
+    #
+    # The *dobreak=true* allows to break the Tk processing of keypresses
+    # such as Ctrl+Y.
+    #
+    # If not set, the text widget is identified as `my TexM`.
+
+    proc NewRow {ind rn} {
+      set i [string first . $ind]
+      set row [string range $ind 0 $i-1]
+      return [incr row $rn][string range $ind $i end]
+    }
+    if {$txt eq ""} {set txt [my TexM]}
+    set err [catch {$txt tag ranges sel} sel]
+    lassign [$txt index insert] pos  ;# position of caret
+    if {[set issel [expr {!$err && [llength $sel]==2}]]} {
+      lassign $sel pos1 pos2         ;# selection's start & end
+      set l1 [expr {int($pos1)}]
+      set l2 [expr {int($pos2)}]
+      set pos21 [$txt index "$pos2 linestart"]
+      if {[$txt get $pos21 $pos2] eq ""} {incr l2 -1}
+      set lfrom [expr {$to>0 ? $l2+1 : $l1-1}]
+      set lto   [expr {$to>0 ? $l1-1 : $l2-1}]
+    } else {
+      set lcurr [expr {int($pos)}]
+      set lfrom [expr {$to>0 ? $lcurr+1 : $lcurr-1}]
+      set lto   [expr {$to>0 ? $lcurr-1 : $lcurr-1}]
+    }
+    set lend [expr {int([$txt index end])}]
+    if {$lfrom>0 && $lfrom<$lend} {
+      incr lto
+      lassign [my GetLinePosition $txt $lfrom.0] linestart lineend
+      set duptext [$txt get $linestart $lineend]
+      $txt configure -autoseparators no
+      $txt edit separator
+      $txt delete $linestart $lineend
+      $txt insert $lto.0 $duptext
+      ::tk::TextSetCursor $txt [NewRow $pos $to]
+      if {$issel} {
+        $txt tag add sel [NewRow $pos1 $to] [NewRow $pos2 $to]
+      }
+      if {[lsearch [$txt tag names] tagCOM*]>-1} {
+        catch {::hl_tcl::my::Modified $txt insert $lto.0 $lto.end}
+      }
+      $txt edit separator
+      $txt configure -autoseparators yes
+      if {$dobreak} {return -code break}
+    }
+    return
+  }
+
+  #########################################################################
+
+  method selectedWordText {txt} {
+
+    # Returns a word under the cursor or a selected text.
+    #   txt - the text's path
+
+    set seltxt ""
+    if {![catch {$txt tag ranges sel} seltxt]} {
+      if {[set forword [expr {$seltxt eq ""}]]} {
+        set pos  [$txt index "insert wordstart"]
+        set pos2 [$txt index "insert wordend"]
+        set seltxt [string trim [$txt get $pos $pos2]]
+        if {![string is wordchar -strict $seltxt]} {
+          # when cursor just at the right of word: take the word at the left
+          set pos  [$txt index "insert -1 char wordstart"]
+          set pos2 [$txt index "insert -1 char wordend"]
+        }
+      } else {
+        lassign $seltxt pos pos2
+      }
+      catch {
+        set seltxt [$txt get $pos $pos2]
+        if {[set sttrim [string trim $seltxt]] ne ""} {
+          if {$forword} {set seltxt $sttrim}
+        }
+      }
+    }
+    return $seltxt
+  }
+
+  #########################################################################
+
+  method InitFindInText { {ctrlf 0} {txt {}} } {
+
+    # Initializes the search in the text.
+    #   ctrlf - "1" means that the method is called by Ctrl+F
+    #   txt - path to the text widget
+
+    if {$txt eq ""} {set txt [my TexM]}
+    if {$ctrlf} {  ;# Ctrl+F moves cursor 1 char ahead
+      ::tk::TextSetCursor $txt [$txt index "insert -1 char"]
+    }
+    if {[set seltxt [my selectedWordText $txt]] ne ""} {
+      set ${_pdg(ns)}PD::fnd $seltxt
+    }
+    return
+  }
+
+  #########################################################################
+
+  method findInText {{donext 0} {txt ""} {varFind ""}} {
+
+    # Finds a string in text widget.
+    #   donext - "1" means 'from a current position'
+    #   txt - path to the text widget
+    #   varFind - variable
+
+    if {$txt eq ""} {
+      if {![info exists ${_pdg(ns)}PD::fnd]} return
+      set txt [my TexM]
+      set sel [set ${_pdg(ns)}PD::fnd]
+    } elseif {$donext && [set sel [my get_HighlightedString]] ne ""} {
+      # find a string got with alt+left/right
+    } elseif {$varFind eq ""} {
+      if {![info exists ${_pdg(ns)}PD::fnd]} return
+      set sel [set ${_pdg(ns)}PD::fnd]
+    } else {
+      set sel [set $varFind]
+    }
+    if {$donext} {
+      set pos [$txt index insert]
+      if {{sel} in [$txt tag names $pos]} {
+        set pos [$txt index "$pos + 1 chars"]
+      }
+      set pos [$txt search -- $sel $pos end]
+    } else {
+      set pos ""
+      my set_HighlightedString ""
+    }
+    if {![string length "$pos"]} {
+      set pos [$txt search -- $sel 1.0 end]
+    }
+    if {[string length "$pos"]} {
+      ::tk::TextSetCursor $txt $pos
+      $txt tag add sel $pos [$txt index "$pos + [string length $sel] chars"]
+      focus $txt
+    } else {
+      bell -nice
+    }
+    return
+  }
+
+  #########################################################################
+
+  method GetLinkLab {m} {
+
+    # Gets a link for label.
+    #   m - label with possible link (between <link> and </link>)
+    # Returns: list of "pure" message and link for label.
+
+    if {[set i1 [string first "<link>" $m]]<0} {
+      return [list $m]
+    }
+    set i2 [string first "</link>" $m]
+    set link [string range $m $i1+6 $i2-1]
+    set m [string range $m 0 $i1-1][string range $m $i2+7 end]
+    return [list $m [list -link $link]]
+  }
+
+  #########################################################################
+
+  method popupFindCommands {pop {txt {}} {com1 ""} {com2 ""}} {
+
+    # Returns find commands for a popup menu on a text.
+    #   pop - path to the menu
+    #   txt - path to the text
+    #   com1 - user's command "find first"
+    #   com2 - user's command "find next"
+
+    if {$com1 eq ""} {set com1 "[self] InitFindInText 0 $txt; focus \[[self] Entfind\]"}
+    if {$com2 eq ""} {set com2 "[self] findInText 1 $txt"}
+    return "\$pop add separator
+      \$pop add command [my iconA find] -accelerator Ctrl+F -label \"Find First\" \\
+        -command {$com1}
+      \$pop add command [my iconA none] -accelerator F3 -label \"Find Next\" \\
+        -command {$com2}"
+  }
+
+  #########################################################################
+
+  method popupBlockCommands {pop {txt {}}} {
+
+    # Returns block commands for a popup menu on a text.
+    #   pop - path to the menu
+    #   txt - path to the text
+
+    return "\$pop add separator
+      \$pop add command [my iconA add] -accelerator Ctrl+D -label \"Double Selection\" \\
+        -command \"[self] doubleText {$txt} 0\"
+      \$pop add command [my iconA delete] -accelerator Ctrl+Y -label \"Delete Line\" \\
+        -command \"[self] deleteLine {$txt} 0\"
+      \$pop add command [my iconA up] -accelerator Alt+Up -label \"Line(s) Up\" \\
+        -command \"[self] linesMove {$txt} -1 0\"
+      \$pop add command [my iconA down] -accelerator Alt+Down -label \"Line(s) Down\" \\
+       -command \"[self] linesMove {$txt} +1 0\""
+  }
+
+
+# ________________________ Highlighting _________________________ #
+
+  #########################################################################
+
+  method popupHighlightCommands {{pop ""} {txt ""}} {
+
+    # Returns highlighting commands for a popup menu on a text.
+    #   pop - path to the menu
+    #   txt - path to the text
+
+    set accQ [::apave::KeyAccelerator [::apave::getTextHotkeys AltQ]]
+    set accW [::apave::KeyAccelerator [::apave::getTextHotkeys AltW]]
+    set res "\$pop add separator
+      \$pop add command [my iconA upload] -accelerator $accQ \\
+      -label \"Highlight First\" -command \"[self] seek_highlight %w 2\"
+      \$pop add command [my iconA download] -accelerator $accW \\
+      -label \"Highlight Last\" -command \"[self] seek_highlight %w 3\"
+      \$pop add command [my iconA previous] -accelerator Alt+Left \\
+      -label \"Highlight Previous\" -command \"[self] seek_highlight %w 0\"
+      \$pop add command [my iconA next] -accelerator Alt+Right \\
+      -label \"Highlight Next\" -command \"[self] seek_highlight %w 1\"
+      \$pop add command [my iconA none] -accelerator Dbl.Click \\
+      -label \"Highlight All\" -command \"[self] highlight_matches %w\""
+    if {$txt ne ""} {set res [string map [list %w $txt] $res]}
+    return $res
+  }
+
+  #########################################################################
+
+  method set_HighlightedString {sel} {
+    # Saves a string got from highlighting by Alt+left/right/q/w.
+    #   sel - the string to be saved
+
+    set _pdg(hlstring) $sel
+    if {[info exist ${_pdg(ns)}PD::fnd] && $sel ne ""} {
+      set ${_pdg(ns)}PD::fnd $sel
+    }
+  }
+
+  method get_HighlightedString {} {
+    # Returns a string got from highlighting by Alt+left/right/q/w.
+
+    if {[info exists _pdg(hlstring)]} {
+      return $_pdg(hlstring)
+    }
+    return ""
+  }
+
+  #########################################################################
+
+  method set_highlight_matches {w} {
+    # Creates bindings to highlight matches in a text.
+    #   w - path to the text
+
+    $w tag configure hilited -foreground #1f0000 -background #ffa073
+    $w tag configure hilited2 -foreground #1f0000 -background #ff6b85
+    bind $w <Double-ButtonPress-1> [list [self] highlight_matches $w]
+    bind $w <KeyRelease> [list + [self] unhighlight_matches $w]
+    bind $w <Alt-Left> "[self] seek_highlight $w 0 ; break"
+    bind $w <Alt-Right> "[self] seek_highlight $w 1 ; break"
+    foreach k [::apave::getTextHotkeys AltQ] {
+      bind $w <$k> [list [self] seek_highlight $w 2]
+    }
+    foreach k [::apave::getTextHotkeys AltW] {
+      bind $w <$k> [list [self] seek_highlight $w 3]
+    }
+  }
+
+  #########################################################################
+
+  method get_highlighted {txt} {
+    # Gets a selected word after double-clicking on a text.
+    #   w - path to the text
+
+    set err [catch {$txt tag ranges sel} sel]
+    lassign $sel pos pos2
+    if {!$err && [llength $sel]==2} {
+      set sel [$txt get $pos $pos2]  ;# single selection
+    } else {
+      if {$err || [string trim $sel] eq ""} {
+        set pos  [$txt index "insert wordstart"]
+        set pos2 [$txt index "insert wordend"]
+        set sel [string trim [$txt get $pos $pos2]]
+        if {![string is wordchar -strict $sel]} {
+          # when cursor just at the right of word: take the word at the left
+          # e.g. if "_" stands for cursor then "word_" means selecting "word"
+          set pos  [$txt index "insert -1 char wordstart"]
+          set pos2 [$txt index "insert -1 char wordend"]
+          set sel [$txt get $pos $pos2]
+        }
+      }
+    }
+    if {[string length $sel] == 0} {set pos ""}
+    return [list $sel $pos $pos2]
+  }
+
+  #########################################################################
+
+  method highlight_matches {txt} {
+    # Highlights matches of selected word in a text.
+    #   w - path to the text
+
+    lassign [my get_highlighted $txt] sel pos
+    if {$pos eq ""} return
+    my set_HighlightedString $sel
+    set lenList {}
+    set posList [$txt search -all -count lenList -- "$sel" 1.0 end]
+    foreach pos2 $posList len $lenList {
+      if {$len eq ""} {set len [string length $sel]}
+      set pos3 [$txt index "$pos2 + $len chars"]
+      if {$pos2 == $pos} {
+        lappend matches2 $pos2 $pos3
+      } else {
+        lappend matches1 $pos2 $pos3
+      }
+    }
+    catch {
+      $txt tag remove hilited 1.0 end
+      $txt tag remove hilited2 1.0 end
+      $txt tag add hilited {*}$matches1
+      $txt tag add hilited2 {*}$matches2
+    }
+    set ::apave::_AP_VARS(HILI,$txt) yes
+  }
+
+  #########################################################################
+
+  method unhighlight_matches {txt} {
+    # Unhighlights matches of selected word in a text.
+    #   w - path to the text
+
+    if {[info exists ::apave::_AP_VARS(HILI,$txt)] && $::apave::_AP_VARS(HILI,$txt)} {
+      $txt tag remove hilited 1.0 end
+      $txt tag remove hilited2 1.0 end
+      set ::apave::_AP_VARS(HILI,$txt) no
+    }
+  }
+
+  #########################################################################
+
+  method seek_highlight {txt mode} {
+    # Seeks the selected word forward/backward/to first/to last in a text.
+    #   w - path to the text
+    #   mode - 0 (search backward), 1 (forward), 2 (first), 3 (last)
+
+    my unhighlight_matches $txt
+    lassign [my get_highlighted $txt] sel pos pos2
+    if {!$pos} return
+    my set_HighlightedString $sel
+    switch $mode {
+      0 { ;# backward
+        set nc [expr {[string length $sel] - 1}]
+        set pos [$txt index "$pos - $nc chars"]
+        set pos [$txt search -backwards -- $sel $pos 1.0]
+      }
+      1 { ;# forward
+        set pos [$txt search -- $sel $pos2 end]
+      }
+      2 { ;# to first
+        set pos [$txt search -- $sel 1.0 end]
+      }
+      3 { ;# to last
+        set pos [$txt search -backwards -- $sel end 1.0]
+      }
+    }
+    if {[string length "$pos"]} {
+      ::tk::TextSetCursor $txt $pos
+      $txt tag add sel $pos [$txt index "$pos + [string length $sel] chars"]
+    }
+  }
+
+# ________________________ Query procs _________________________ #
 
   method FieldName {name} {
 
@@ -325,7 +882,7 @@ oo::class create ::apave::APaveDialog {
         set defb2 $but
       }
       if {[set _ [string first "::" $txt]]>-1} {
-        set tt " -tooltip {[string range $txt $_+2 end]}"
+        set tt " -tip {[string range $txt $_+2 end]}"
         set txt [string range $txt 0 $_-1]
       } else {
         set tt ""
@@ -361,430 +918,11 @@ oo::class create ::apave::APaveDialog {
 
   #########################################################################
 
-  method pasteText {txt} {
+  method Pdg {name} {
 
-    # Removes a selection at pasting.
-    #   txt - text's path
-    #
-    # The absence of this feature is very perpendicular of Tk's paste.
+    # Gets a value of _pdg(name).
 
-    set err [catch {$txt tag ranges sel} sel]
-    if {!$err && [llength $sel]==2} {
-      lassign $sel pos pos2
-      $txt delete $pos $pos2
-    }
-  }
-
-  #########################################################################
-
-  method doubleText {txt {dobreak 1}} {
-
-    # Doubles a current line or a selection of text widget.
-    #   txt - text's path
-    #   dobreak - if true, means "return -code break"
-    #
-    # The *dobreak=true* allows to break the Tk processing of keypresses
-    # such as Ctrl+D.
-    #
-    # If not set, the text widget is identified as `my TexM`.
-
-    if {$txt eq ""} {set txt [my TexM]}
-    set err [catch {$txt tag ranges sel} sel]
-    if {!$err && [llength $sel]==2} {
-      lassign $sel pos pos2
-      set pos3 "insert"  ;# single selection
-    } else {
-      lassign [my GetLinePosition $txt insert] pos pos2  ;# current line
-      set pos3 $pos2
-    }
-    set duptext [$txt get $pos $pos2]
-    $txt insert $pos3 $duptext
-    if {$dobreak} {return -code break}
-    return
-  }
-
-  #########################################################################
-
-  method deleteLine {txt {dobreak 1}} {
-
-    # Deletes a current line of text widget.
-    #   txt - text's path
-    #   dobreak - if true, means "return -code break"
-    #
-    # The *dobreak=true* allows to break the Tk processing of keypresses
-    # such as Ctrl+Y.
-    #
-    # If not set, the text widget is identified as `my TexM`.
-
-    if {$txt eq ""} {set txt [my TexM]}
-    lassign [my GetLinePosition $txt insert] linestart lineend
-    $txt delete $linestart $lineend
-    if {$dobreak} {return -code break}
-    return
-  }
-
-  #########################################################################
-
-  method linesMove {txt to {dobreak 1}} {
-
-    # Moves a current line or lines of selection up/down.
-    #   txt - text's path
-    #   to - direction (-1 means "up", +1 means "down")
-    #   dobreak - if true, means "return -code break"
-    #
-    # The *dobreak=true* allows to break the Tk processing of keypresses
-    # such as Ctrl+Y.
-    #
-    # If not set, the text widget is identified as `my TexM`.
-
-    proc NewRow {ind rn} {
-      set i [string first . $ind]
-      set row [string range $ind 0 $i-1]
-      return [incr row $rn][string range $ind $i end]
-    }
-    if {$txt eq ""} {set txt [my TexM]}
-    set err [catch {$txt tag ranges sel} sel]
-    lassign [$txt index insert] pos  ;# position of caret
-    if {[set issel [expr {!$err && [llength $sel]==2}]]} {
-      lassign $sel pos1 pos2         ;# selection's start & end
-      set l1 [expr {int($pos1)}]
-      set l2 [expr {int($pos2)}]
-      set lfrom [expr {$to>0 ? $l2+1 : $l1-1}]
-      set lto   [expr {$to>0 ? $l1-1 : $l2-1}]
-    } else {
-      set lcurr [expr {int($pos)}]
-      set lfrom [expr {$to>0 ? $lcurr+1 : $lcurr-1}]
-      set lto   [expr {$to>0 ? $lcurr-1 : $lcurr-1}]
-    }
-    set lend [expr {int([$txt index end])}]
-    if {$lfrom>0 && $lfrom<$lend} {
-      incr lto
-      lassign [my GetLinePosition $txt $lfrom.0] linestart lineend
-      set duptext [$txt get $linestart $lineend]
-      $txt delete $linestart $lineend
-      $txt insert $lto.0 $duptext
-      ::tk::TextSetCursor $txt [NewRow $pos $to]
-      if {$issel} {
-        $txt tag add sel [NewRow $pos1 $to] [NewRow $pos2 $to]
-      }
-      if {[lsearch [$txt tag names] tagCOM*]>-1} {
-        set i1 [expr {min($lto,$lfrom,$linestart,$lineend)-1}]
-        set i2 [expr {min($lto,$lfrom,$linestart,$lineend)+1}]
-        ::hl_tcl::my::Modified $txt $i1 $i2
-      }
-      if {$dobreak} {return -code break}
-    }
-    return
-  }
-
-  #########################################################################
-
-  method selectedWordText {txt} {
-
-    # Returns a word under the cursor or a selected text.
-    #   txt - the text's path
-
-    set seltxt ""
-    if {![catch {$txt tag ranges sel} seltxt]} {
-      if {[set forword [expr {$seltxt eq ""}]]} {
-        set pos  [$txt index "insert wordstart"]
-        set pos2 [$txt index "insert wordend"]
-        set seltxt [string trim [$txt get $pos $pos2]]
-        if {![string is wordchar -strict $seltxt]} {
-          # when cursor just at the right of word: take the word at the left
-          set pos  [$txt index "insert -1 char wordstart"]
-          set pos2 [$txt index "insert -1 char wordend"]
-        }
-      } else {
-        lassign $seltxt pos pos2
-      }
-      catch {
-        set seltxt [$txt get $pos $pos2]
-        if {[set sttrim [string trim $seltxt]] ne ""} {
-          if {$forword} {set seltxt $sttrim}
-        }
-      }
-    }
-    return $seltxt
-  }
-
-  #########################################################################
-
-  method InitFindInText { {ctrlf 0} {txt {}} } {
-
-    # Initializes the search in the text.
-    #   ctrlf - "1" means that the method is called by Ctrl+F
-    #   txt - path to the text widget
-
-    if {$txt eq ""} {set txt [my TexM]}
-    if {$ctrlf} {  ;# Ctrl+F moves cursor 1 char ahead
-      ::tk::TextSetCursor $txt [$txt index "insert -1 char"]
-    }
-    if {[set seltxt [my selectedWordText $txt]] ne ""} {
-      set ${_pdg(ns)}PD::fnd $seltxt
-    }
-    return
-  }
-
-  #########################################################################
-
-  method findInText {{donext 0} {txt ""} {varFind ""}} {
-
-    # Finds a string in text widget.
-    #   donext - "1" means 'from a current position'
-    #   txt - path to the text widget
-    #   varFind - variable
-
-    if {$txt eq ""} {
-      if {![info exists ${_pdg(ns)}PD::fnd]} return
-      set txt [my TexM]
-      set sel [set ${_pdg(ns)}PD::fnd]
-    } elseif {$donext && [set sel [my get_HighlightedString]] ne ""} {
-      # find a string got with alt+left/right
-    } elseif {$varFind eq ""} {
-      if {![info exists ${_pdg(ns)}PD::fnd]} return
-      set sel [set ${_pdg(ns)}PD::fnd]
-    } else {
-      set sel [set $varFind]
-    }
-    if {$donext} {
-      set pos [$txt index "[$txt index insert] + 1 chars"]
-      set pos [$txt search -- $sel $pos end]
-    } else {
-      set pos ""
-      my set_HighlightedString ""
-    }
-    if {![string length "$pos"]} {
-      set pos [$txt search -- $sel 1.0 end]
-    }
-    if {[string length "$pos"]} {
-      ::tk::TextSetCursor $txt $pos
-      $txt tag add sel $pos [$txt index "$pos + [string length $sel] chars"]
-      focus $txt
-    } else {
-      bell -nice
-    }
-    return
-  }
-
-  #########################################################################
-
-  method GetLinkLab {m} {
-
-    # Gets a link for label.
-    #   m - label with possible link (between <link> and </link>)
-    # Returns: list of "pure" message and link for label.
-
-    if {[set i1 [string first "<link>" $m]]<0} {
-      return [list $m]
-    }
-    set i2 [string first "</link>" $m]
-    set link [string range $m $i1+6 $i2-1]
-    set m [string range $m 0 $i1-1][string range $m $i2+7 end]
-    return [list $m [list -link $link]]
-  }
-
-  #########################################################################
-
-  method popupFindCommands {pop {txt {}} {com1 ""} {com2 ""}} {
-
-    # Returns find commands for a popup menu on a text.
-    #   pop - path to the menu
-    #   txt - path to the text
-    #   com1 - user's command "find first"
-    #   com2 - user's command "find next"
-
-    if {$com1 eq ""} {set com1 "[self] InitFindInText 0 $txt; focus \[[self] Entfind\]"}
-    if {$com2 eq ""} {set com2 "[self] findInText 1 $txt"}
-    return "\$pop add separator
-      \$pop add command [my iconA find] -accelerator Ctrl+F -label \"Find First\" \\
-        -command {$com1}
-      \$pop add command [my iconA none] -accelerator F3 -label \"Find Next\" \\
-        -command {$com2}"
-  }
-
-  #########################################################################
-
-  method popupBlockCommands {pop {txt {}}} {
-
-    # Returns block commands for a popup menu on a text.
-    #   pop - path to the menu
-    #   txt - path to the text
-
-    return "\$pop add separator
-      \$pop add command [my iconA add] -accelerator Ctrl+D -label \"Double Selection\" \\
-        -command \"[self] doubleText {$txt} 0\"
-      \$pop add command [my iconA delete] -accelerator Ctrl+Y -label \"Delete Line\" \\
-        -command \"[self] deleteLine {$txt} 0\"
-      \$pop add command [my iconA up] -accelerator Alt+Up -label \"Line(s) Up\" \\
-        -command \"[self] linesMove {$txt} -1 0\"
-      \$pop add command [my iconA down] -accelerator Alt+Down -label \"Line(s) Down\" \\
-       -command \"[self] linesMove {$txt} +1 0\""
-  }
-
-  #########################################################################
-
-  method popupHighlightCommands {{pop ""} {txt ""}} {
-
-    # Returns highlighting commands for a popup menu on a text.
-    #   pop - path to the menu
-    #   txt - path to the text
-
-    set res "\$pop add separator
-      \$pop add command [my iconA upload] -accelerator Alt+Q \\
-      -label \"Highlight First\" -command \"[self] seek_highlight %w 2\"
-      \$pop add command [my iconA download] -accelerator Alt+W \\
-      -label \"Highlight Last\" -command \"[self] seek_highlight %w 3\"
-      \$pop add command [my iconA previous] -accelerator Alt+Left \\
-      -label \"Highlight Previous\" -command \"[self] seek_highlight %w 0\"
-      \$pop add command [my iconA next] -accelerator Alt+Right \\
-      -label \"Highlight Next\" -command \"[self] seek_highlight %w 1\"
-      \$pop add command [my iconA none] -accelerator Dbl.Click \\
-      -label \"Highlight All\" -command \"[self] highlight_matches %w\""
-    if {$txt ne ""} {set res [string map [list %w $txt] $res]}
-    return $res
-  }
-
-  #########################################################################
-
-  method set_HighlightedString {sel} {
-    # Saves a string got from highlighting by Alt+left/right/q/w.
-    #   sel - the string to be saved
-
-    set _pdg(hlstring) $sel
-    if {[info exist ${_pdg(ns)}PD::fnd] && $sel ne ""} {
-      set ${_pdg(ns)}PD::fnd $sel
-    }
-  }
-
-  method get_HighlightedString {} {
-    # Returns a string got from highlighting by Alt+left/right/q/w.
-
-    if {[info exists _pdg(hlstring)]} {
-      return $_pdg(hlstring)
-    }
-    return ""
-  }
-
-  #########################################################################
-
-  method set_highlight_matches {w} {
-    # Creates bindings to highlight matches in a text.
-    #   w - path to the text
-
-    $w tag configure hilited -foreground #1f0000 -background #ffa073
-    $w tag configure hilited2 -foreground #1f0000 -background #ff6b85
-    bind $w <Double-ButtonPress-1> [list [self] highlight_matches $w]
-    bind $w <KeyRelease> [list + [self] unhighlight_matches $w]
-    bind $w <Alt-Left> "[self] seek_highlight $w 0 ; break"
-    bind $w <Alt-Right> "[self] seek_highlight $w 1 ; break"
-    foreach {kq kw} {q w Q W} {
-      bind $w <Alt-$kq> [list [self] seek_highlight $w 2]
-      bind $w <Alt-$kw> [list [self] seek_highlight $w 3]
-    }
-  }
-
-  #########################################################################
-
-  method get_highlighted {txt} {
-    # Gets a selected word after double-clicking on a text.
-    #   w - path to the text
-
-    set err [catch {$txt tag ranges sel} sel]
-    lassign $sel pos pos2
-    if {!$err && [llength $sel]==2} {
-      set sel [$txt get $pos $pos2]  ;# single selection
-    } else {
-      if {$err || [string trim $sel] eq ""} {
-        set pos  [$txt index "insert wordstart"]
-        set pos2 [$txt index "insert wordend"]
-        set sel [string trim [$txt get $pos $pos2]]
-        if {![string is wordchar -strict $sel]} {
-          # when cursor just at the right of word: take the word at the left
-          # e.g. if "_" stands for cursor then "word_" means selecting "word"
-          set pos  [$txt index "insert -1 char wordstart"]
-          set pos2 [$txt index "insert -1 char wordend"]
-          set sel [$txt get $pos $pos2]
-        }
-      }
-    }
-    if {[string length $sel] == 0} {set pos ""}
-    return [list $sel $pos $pos2]
-  }
-
-  #########################################################################
-
-  method highlight_matches {txt} {
-    # Highlights matches of selected word in a text.
-    #   w - path to the text
-
-    lassign [my get_highlighted $txt] sel pos
-    if {$pos eq ""} return
-    my set_HighlightedString $sel
-    set lenList {}
-    set posList [$txt search -all -count lenList -- "$sel" 1.0 end]
-    foreach pos2 $posList len $lenList {
-      if {$len eq ""} {set len [string length $sel]}
-      set pos3 [$txt index "$pos2 + $len chars"]
-      if {$pos2 == $pos} {
-        lappend matches2 $pos2 $pos3
-      } else {
-        lappend matches1 $pos2 $pos3
-      }
-    }
-    catch {
-      $txt tag remove hilited 1.0 end
-      $txt tag remove hilited2 1.0 end
-      $txt tag add hilited {*}$matches1
-      $txt tag add hilited2 {*}$matches2
-    }
-    set ::apave::_AP_VARS(HILI) yes
-  }
-
-  #########################################################################
-
-  method unhighlight_matches {txt} {
-    # Unhighlights matches of selected word in a text.
-    #   w - path to the text
-
-    if {$::apave::_AP_VARS(HILI)} {
-      $txt tag remove hilited 1.0 end
-      $txt tag remove hilited2 1.0 end
-      set ::apave::_AP_VARS(HILI) no
-    }
-  }
-
-  #########################################################################
-
-  method seek_highlight {txt mode} {
-    # Seeks the selected word forward/backward/to first/to last in a text.
-    #   w - path to the text
-    #   mode - 0 (search backward), 1 (forward), 2 (first), 3 (last)
-
-    my unhighlight_matches $txt
-    lassign [my get_highlighted $txt] sel pos pos2
-    if {!$pos} return
-    my set_HighlightedString $sel
-    switch $mode {
-      0 { # backward
-        set nc [expr {[string length $sel] - 1}]
-        set pos [$txt index "$pos - $nc chars"]
-        set pos [$txt search -backwards -- $sel $pos 1.0]
-      }
-      1 { # forward
-        set pos [$txt search -- $sel $pos2 end]
-      }
-      2 { # to first
-        set pos [$txt search -- $sel 1.0 end]
-      }
-      3 { # to last
-        set pos [$txt search -backwards -- $sel end 1.0]
-      }
-    }
-    if {[string length "$pos"]} {
-      ::tk::TextSetCursor $txt $pos
-      $txt tag add sel $pos [$txt index "$pos + [string length $sel] chars"]
-    }
+    return $_pdg($name)
   }
 
   #########################################################################
@@ -822,10 +960,11 @@ oo::class create ::apave::APaveDialog {
     set focusback [focus]
     set focusmatch ""
     # options of dialog
-    lassign "" chmsg geometry optsLabel optsMisc optsFont optsFontM root ontop \
+    lassign {} chmsg geometry optsLabel optsMisc optsFont optsFontM root ontop \
                rotext head optsHead hsz binds postcom onclose timeout
     set modal yes
-    set tags ""
+    set tags {}
+    set themed 0
     set wasgeo [set textmode 0]
     set cc [set themecolors [set optsGrid [set addpopup ""]]]
     set readonly [set hidefind [set scroll 1]]
@@ -866,7 +1005,7 @@ oo::class create ::apave::APaveDialog {
         -bgS {append optsMisc " -selectbackground {$val}"}
         -cc {append optsMisc " -insertbackground {$val}"}
         -my - -myown {append optsMisc " -myown {$val}"}
-        -root {set root " -root $val"}
+        -root - -parent {set root " -root $val"}
         -pos {set curpos "$val"}
         -hfg {append optsHead " -foreground {$val}"}
         -hbg {append optsHead " -background {$val}"}
@@ -880,6 +1019,7 @@ oo::class create ::apave::APaveDialog {
         -modal {set modal $val}
         -popup {set addpopup [string map [list %w $qdlg.fra.texM] "$val"]}
         -scroll {set scroll "$val"}
+        -themed {set themed $val}
         default {
           append optsFont " $opt $val"
           if {$opt ne "-family"} {
@@ -901,7 +1041,7 @@ oo::class create ::apave::APaveDialog {
     set optsHeadFont $optsFont
     set fs [my basicFontSize]
     set textfont "-family {[my basicTextFont]}"
-    if {$optsFont ne ""} {
+    if {$optsFont ne {}} {
       if {[string first "-size " $optsFont]<0} {
         append optsFont " -size $fs"
       }
@@ -915,12 +1055,15 @@ oo::class create ::apave::APaveDialog {
       }
       append optsFont "\}"
     } else {
-      set optsFont "-font \{-size $fs\}"
+      set optsFont "-font {[font actual apaveFontDef] -size $fs}"
       set optsFontM "-size $fs"
     }
-    set msgonly [expr {$readonly || $hidefind || $chmsg ne ""}]
+    set msgonly [expr {$readonly || $hidefind || $chmsg ne {}}]
     if {!$textmode || $msgonly} {
       set textfont "-family {[my basicDefFont]}"
+      if {!$textmode} {
+        set msg [string map [list \\ \\\\ \{ \\\\\{ \} \\\\\}] $msg]
+      }
     }
     set optsFontM [string trim $optsFontM]
     set optsFontM "-font \{$optsFontM $textfont\}"
@@ -961,7 +1104,7 @@ oo::class create ::apave::APaveDialog {
     set il [set maxw 0]
     if {$readonly} {
       # only for messaging (not for editing):
-      set msg [string map {\\n \n} $msg]
+      set msg [string map {\\\\n \\n \\n \n} $msg]
     }
     foreach m [split $msg \n] {
       set m [string map {$ \$ \" \'\'} $m]
@@ -1047,7 +1190,7 @@ oo::class create ::apave::APaveDialog {
         if {$hidefind} {
           lappend widlist [list h__ h_3 L 1 4 "-cw 1"]
         } else {
-          lappend widlist [list labfnd h_3 L 1 1 "-st e" "-t {Find:}"]
+          lappend widlist [list labfnd h_3 L 1 1 "-st e" "-t {[msgcat::mc {Find: }]}"]
           lappend widlist [list Entfind labfnd L 1 1 \
             "-st ew -cw 1" "-tvar ${_pdg(ns)}PD::fnd -w 10"]
           lappend widlist [list labfnd2 Entfind L 1 1 "-cw 2" "-t {}"]
@@ -1169,7 +1312,7 @@ oo::class create ::apave::APaveDialog {
     }
     catch "$binds"
     set args [::apave::removeOptions $args -focus]
-    my showModal $qdlg -themed [string length $themecolors]\
+    my showModal $qdlg -themed $themed \
       -focus $focusnow -geometry $geometry {*}$root {*}$modal {*}$ontop {*}$args
     oo::objdefine [self] unexport InitFindInText Pdg
     set pdgeometry [winfo geometry $qdlg]
@@ -1212,8 +1355,11 @@ oo::class create ::apave::APaveDialog {
     }
     if {$wasgeo} {
       lassign [split $pdgeometry x+] w h x y
-      if {abs($x-$gx)<30} {set x $gx}
-      if {abs($y-$gy)<30} {set y $gy}
+      catch {
+        # geometry option can contain pointer/root etc.
+        if {abs($x-$gx)<30} {set x $gx}
+        if {abs($y-$gy)<30} {set y $gy}
+      }
       return [list $result ${w}x${h}+${x}+${y} $textcont [string trim $inopts]]
     }
     return "$result$textcont$inopts"
@@ -1221,5 +1367,6 @@ oo::class create ::apave::APaveDialog {
 
 }
 # _____________________________ EOF _____________________________________ #
+#RUNF1: ../../src/alited.tcl LOG=~/TMP/alited-DEBUG.log DEBUG
 #RUNF1: ~/PG/github/pave/tests/test2_pave.tcl -1 9 12 "small icons"
 #RUNF1: ./tests/test_pavedialog.tcl
