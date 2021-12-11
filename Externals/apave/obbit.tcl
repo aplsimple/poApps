@@ -44,54 +44,54 @@ namespace eval ::apave {
   fI     bI  --12--  bM    fW      bW     itemHL2 tabHL chkHL #005...reserved... #007
 
   set ::apave::_CS_(ALL) {
-{{ 0: AwLight} "#141414" #151616 #dfdfde #d1d1d0 #562222 #85b4e7 #000 #444 grey #1a497c #000 #7fb8ce - #bebebd #000 #FBFB96 #cacaca #a20000 #76b2f1 #005 #006 #007}
-{{ 1: AzureLight} "#050b0d" #050b0d #fff #e1e1e1 #002aaa #8dd9db #000 #444 grey #0e7b7c #000 #81cdcf - #cccccc #000 #FBFB95 #e2e2e0 #ad0000 #76b2f1 #005 #006 #007}
-{{ 2: ForestLight} "#050b0d" #050b0d #fff #e1e1e1 #004000 #A8CCA8 #000 #185818 grey #217346 #000 #a8bda8 - #cccccc #000 #FBFB95 #e2e2e0 #ad0000 #76b2f1 #005 #006 #007}
-{{ 3: SunValleyLight} "#050b0d" #050b0d #fff #e1e1e1 #00469f #74c9ff #000 #444 grey #005fb8 #000 #7fcbff - #cccccc #000 #FBFB95 #e2e2e0 #950000 #76b2f1 #005 #006 #007}
-{{ 4: Grey1} "#050b0d" #050b0d #F8F8F8 #dadad8 #5c1616 #AFAFAF #000 #444 grey #933232 #000 #AFAFAF - #caccd0 #000 #FBFB95 #e0e0d8 #a20000 #76b2f1 #005 #006 #007}
-{{ 5: Grey2} "#050b0d" #050b0d #e9e9e7 #F8F8F8 #5c1616 #b8b8b8 #000 #444 grey #933232 #000 #c1c1c1 - #e1e1e1 #000 #FBFB95 #d5d5d3 #a20000 #76b2f1 #005 #006 #007}
-{{ 6: Rosy} "#2B122A" #000 #FFFFFF #F6E6E9 #570957 #C5ADC8 #000 #630063 grey #870287 #000 #ceb6d1 - #e3d3d6 #000 #FBFB95 #e5e3e1 #a20000 #76b2f1 #005 #006 #007}
-{{ 7: Clay} "#000" #000 #fdf4ed #ded3cc #500a0a #bcaea2 #000 #444 grey #843500 #fff #9a8f83 - #d5c9c1 #000 #FBFB95 #e1dfde #a20000 #76b2f1 #005 #006 #007}
-{{ 8: Dawn} "#08085D" #030358 #FFFFFF #e3f9f9 #562222 #a3dce5 #000 #195999 grey #933232 #000 #99d2db - #d3e9e9 #000 #FBFB96 #dbe9ed #a20000 #76b2f1 #005 #006 #007}
-{{ 9: Sky} "#102433" #0A1D33 #d0fdff #bdf6ff #562222 #95ced7 #000 #195999 grey #933232 #000 #9ad3dc - #b1eaf3 #000 #FBFB95 #c0e9ef #a20000 #76b2f1 #005 #006 #007}
-{{10: Florid} "#000" #004000 #e4fce4 #fff #5c1616 #93e493 #0F2D0F #185818 grey #802e00 #004000 #a7f8a7 - #d8e7d8 #000 #FBFB96 #d7e6d7 #a20000 #76b2f1 #005 #006 #007}
-{{11: LightGreen} "#122B05" #091900 #edffed #DEF8DE #562222 #A8CCA8 #000 #185818 grey #933232 #000 #A8CCA8 - #cde7cd #000 #FBFB96 #dee9de #a20000 #76b2f1 #005 #006 #007}
-{{12: InverseGreen} "#122B05" #091900 #cce6c8 #DEF8DE #562222 #9cc09c #000 #185818 grey #933232 #000 #b5d9b5 - #c9e3c9 #000 #FBFB96 #bed8ba #a20000 #76b2f1 #005 #006 #007}
-{{13: GreenPeace} "#001000" #001000 #e1ffdd #cadfca #562222 #9dbb99 #000 #185818 grey #933232 #000 #9cb694 - #b9d3b9 #000 #FBFB96 #d2e1d2 #a20000 #76b2f1 #005 #006 #007}
-{{14: African} "#000" #000 #fff #ffffe7 #460000 #ffd797 #000 #682800 #7e7e7e #771d00 #000 #e6ae80 - #e7e7cf #000 #eded89 #ededd5 #a20000 #76b2f1 #005 #006 #007}
-{{15: African1} "#000" #000 #f5f5dd #f2ebd2 #460000 #ffc48a #000 #682800 #7e7e7e #771d00 #000 #f2ebd2 - #e3dcc3 #000 #eded89 #e3e3cb #a20000 #76b2f1 #005 #006 #007}
-{{16: African2} "#000" #000 #ffffe4 #eae7c0 #500a0a #eaac7a #000 #682800 grey #771d00 #00003c #e6ae80 - #dddab3 #000 #fbfb74 #e7e7cb #a20000 #76b2f1 #005 #006 #007}
-{{17: African3} "#000" #000 #fdf9d0 #d5d2af #500a0a #d59d6f #000 #682800 grey #771d00 #00003c #e6ae80 - #c5c29f #000 #fbfb74 #e5e5cc #c10000 #76b2f1 #005 #006 #007}
-{{18: Yellowstone} "#00002f" #00003c #ffffd1 #cfcdb1 #591c0e #c89160 #000 #682800 grey #771d00 #3b1516 #cfab86 - #c2c0a4 #000 #ffff45 #e6e6bb #a30000 #76b2f1 #005 #006 #007}
-{{19: Notebook} "#000" #000 #e9e1c8 #c2bca8 #460000 #d59d6f #000 #682800 #7e7e7e #771d00 #000 #c09c77 - #d0cab6 #000 #eded89 #dad2b9 #a20000 #76b2f1 #005 #006 #007}
-{{20: Notebook1} "#000" #000 #dad2b9 #b5af9b #460000 #d59d6f #000 #682800 #707070 #771d00 #000 #ba9671 - #c5bfab #000 #eded89 #ccc4ab #a20000 #76b2f1 #005 #006 #007}
-{{21: Notebook2} "#000" #000 #cdc5ac #a6a08c #460000 #d59d6f #000 #682800 #606060 #771d00 #000 #cfab86 - #b4ae9a #000 #eded89 #c1b9a0 #980000 #76b2f1 #005 #006 #007}
-{{22: Notebook3} "#000" #000 #beb69d #96907c #460000 #d59d6f #000 #682800 #505050 #771d00 #000 #cfab86 - #a6a08c #000 #eded89 #b2aa91 #7b1010 #76b2f1 #005 #006 #007}
-{{23: Darcula} "#ececec" #c7c7c7 #272727 #323232 #e98f1c #2F5692 #e1e1e1 #f4f49f grey #d18d3f #EDC881 #2a518d - #444444 #000 #c5c561 #343434 #f28787 #76b2f1 #005 #006 #007}
-{{24: Dusk} "#ececec" #ececec #1a1f21 #262b2d #95bf95 #217346 #FFF #f4f49f #585d5f #99c399 #ffffff #225c3b - #363b3d #000 #c5c561 #23282a #ffabab #99dd99 #005 #006 #007}
-{{25: AwDark} "#F0E8E8" #E7E7E7 #1f2223 #232829 #de9e5e #215d9c #fff #f4f49f grey #80bcfb #fff #134f8e - #313637 #000 #c5c561 #292e2f #ffabab #76b2f1 #005 #006 #007}
-{{26: AzureDark} "#ececec" #c7c7c7 #272727 #393939 #28a7ff #0a89c1 #FFF #f4f49f grey #33b2ff #EDC881 #0062a5 - #4a4a4a #000 #d3d36f #383838 #ffc341 #76b2f1 #005 #006 #007}
-{{27: ForestDark} "#ececec" #c7c7c7 #272727 #393939 #95bf95 #217346 #FFF #42ff42 grey #99c399 #ffffff #247649 - #4a4a4a #000 #d3d36f #383838 #efaf6f #99dd99 #005 #006 #007}
-{{28: SunValleyDark} "#dfdfdf" #dddddd #131313 #252525 #38a9e0 #2a627f #FFF #f4f49f #6f6f6f #57c8ff #fff #2051c9 - #323232 #000 #c5c561 #2a2a2a #efaf6f #4273eb #005 #006 #007}
-{{29: Dark1} "#E0D9D9" #C4C4C4 #212121 #292929 #de9e5e #6c6c6c #000 #f4f49f #606060 #eda95b #000 #767676 - #363636 #000 #c5c561 #292929 #ffabab #76b2f1 #005 #006 #007}
-{{30: Dark2} "#bebebe" #bebebe #1f1f1f #262626 #de9e5e #6b6b6b #000 #f4f49f #616161 #eda95b #000 #767676 - #323232 #000 #c5c561 #262626 #ffabab #76b2f1 #005 #006 #007}
-{{31: Dark3} "#bebebe" #bebebe #0a0a0a #232323 #de9e5e #6a6a6a #000 #f4f49f #616161 #eda95b #000 #767676 - #303030 #000 #c5c561 #131313 #ffabab #76b2f1 #005 #006 #007}
-{{32: Oscuro} "#f1f1f1" #ffffff #314242 #3e5959 #f1b479 #6c8787 #fff #42ff42 #afafaf #f7c475 #000 #94afaf - #4d6868 #000 #d3d36f #425353 #ffcd8d #94e2b8 #005 #006 #007}
-{{33: Oscuro1} "#e3e3e3" #f7f7f7 #233434 #304b4b #e3a66b #5e7979 #fff #42ff42 #a1a1a1 #e9b667 #000 #86a1a1 - #3f5a5a #000 #d3d36f #344545 #ffc585 #86d4aa #005 #006 #007}
-{{34: Oscuro2} "#d5d5d5" #f1f1f1 #152626 #223d3d #d5985d #506b6b #fff #42ff42 #939393 #dba859 #000 #789393 - #314c4c #000 #d3d36f #263737 #f7bc7c #78c69c #005 #006 #007}
-{{35: Oscuro3} "#c7c7c7" #eaeaea #071818 #142f2f #c78a4f #425d5d #fff #42ff42 #858585 #cd9a4b #000 #6a8585 - #233e3e #000 #d3d36f #182929 #e9ae6e #6ab88e #005 #006 #007}
-{{36: MildDark} "#d2d2d2" #ffffff #223142 #2D435B #2ac8c8 #517997 #fff #00ffff grey #36d4d4 #000 #668eac - #3a5068 #000 #c5c561 #324152 #eeae6e #76b2f1 #005 #006 #007}
-{{37: MildDark1} "#c8c8c8" #f7f7f7 #1a2937 #24384f #28c6c6 #466e8c #fff #00ffff #757575 #33d1d1 #000 #668eac - #31455c #000 #c5c561 #2b3a48 #f1b171 #76b2f1 #005 #006 #007}
-{{38: MildDark2} "#e2e2e2" #f1f1f1 #0e1d2c #1B3048 #27c5c5 #426a88 #fff #00ffff #6c6c6c #31d0d0 #000 #668eac - #2a3f57 #000 #c5c561 #1d2c3b #ebab6b #76b2f1 #005 #006 #007}
-{{39: MildDark3} "#dbdbdb" #eaeaea #000c1b #031830 #27c5c5 #375f7d #fff #00ffff #6c6c6c #28c7c7 #000 #5a82a0 - #162b43 #000 #c5c561 #0a1f37 #e5a565 #76b2f1 #005 #006 #007}
-{{40: Inkpot} "#d3d3ff" #AFC2FF #16161f #1E1E27 #de9e5e #525293 #fff #f4f49f #6e6e6e #ffbb6d #000 #8585c6 - #292936 #000 #c5c561 #202029 #ffc888 #7a7abb #005 #006 #007}
-{{41: Quiverly} "#cdd8d8" #cdd8d8 #2b303b #333946 #de9e5e #6f7582 #fff #f4f49f #757575 #eda95b #000 #9197a4 - #414650 #000 #c5c561 #323742 #ffc888 #76b2f1 #005 #006 #007}
-{{42: Monokai} "#f8f8f2" #f8f8f2 #353630 #4e5044 #f1b479 #707070 #fff #f4f49f #9a9a9a #ffbb6d #000 #777777 - #46473d #000 #d3d36f #3c3d37 #ffc888 #cd994b #005 #006 #007}
-{{43: TKE Default} "#dbdbdb" #dbdbdb #000 #282828 #de9e5e #0a0acc #fff #f4f49f #6a6a6a #d3a85a #fff #0000d3 - #383838 #000 #c5c561 #0d0e0e #ffc888 #76b2f1 #005 #006 #007}
-{{44: Magenta} "#E8E8E8" #F0E8E8 #381e44 #4A2A4A #f1b479 #846484 #fff #f4f49f grey #ffbb6d #000 #ad8dad - #573757 #000 #c5c561 #42284e #ffc888 #ffafff #005 #006 #007}
-{{45: Red} "#fff" #e9e9e6 #340202 #440702 #f1b479 #b05e5e #fff #f4f49f #828282 #ffbb6d #000 #ba6868 - #521514 #000 #c5c561 #461414 #ffc888 #ff9a9a #005 #006 #007}
-{{46: Chocolate} "#d6d1ab" #d6d1ab #251919 #402020 #de9e5e #664D4D #fff #f4f49f #828282 #c3984a #fff #583f3f - #432a2a #000 #c5c561 #2d2121 #eeb777 #cf9292 #005 #006 #007}
-{{47: Desert} "#fff" #fff #47382d #5a4b40 #f1b479 #85766b #fff #f4f49f #a2a2a2 #ffbb6d #fff #7f7065 - #695a4f #000 #d3d36f #503f34 #ffc888 #ead79b #005 #006 #007}
+{{ 0: AwLight} "#141414" #151616 #dfdfde #d1d1d0 #28578a #85b4e7 #000 #444 grey #4776a9 #000 #97c6f9 - #bebebd #000 #FBFB96 #cacaca #a20000 #76b2f1 #005 #006 #007}
+{{ 1: AzureLight} "#050b0d" #050b0d #fff #e1e1e1 #0b8aa4 #7feaff #000 #444 grey #22a1bb #000 #93e8ff - #cccccc #000 #FBFB95 #e2e2e0 #ad0000 #76b2f1 #005 #006 #007}
+{{ 2: ForestLight} "#050b0d" #050b0d #fff #e1e1e1 #1d5d1d #A8CCA8 #000 #185818 grey #328457 #000 #b6cbb6 - #cccccc #000 #FBFB95 #e2e2e0 #ad0000 #76b2f1 #005 #006 #007}
+{{ 3: SunValleyLight} "#050b0d" #050b0d #fff #e1e1e1 #1056af #86d2ff #000 #444 grey #1574cd #000 #7fcbff - #cccccc #000 #FBFB95 #e2e2e0 #950000 #76b2f1 #005 #006 #007}
+{{ 4: Grey1} "#050b0d" #050b0d #F8F8F8 #dadad8 #933232 #b8b8b8 #000 #444 grey #843e3e #000 #AFAFAF - #caccd0 #000 #FBFB95 #e0e0d8 #a20000 #76b2f1 #005 #006 #007}
+{{ 5: Grey2} "#050b0d" #050b0d #f4f4f4 #F8F8F8 #5c1616 #c8c8c8 #000 #444 grey #933232 #000 #c1c1c1 - #e7e7e7 #000 #FBFB95 #e5e5e5 #a20000 #76b2f1 #005 #006 #007}
+{{ 6: Rosy} "#2B122A" #000 #FFFFFF #F6E6E9 #712371 #d0b8d3 #000 #630063 grey #954799 #000 #ceb6d1 - #e3d3d6 #000 #FBFB95 #e5e3e1 #a20000 #76b2f1 #005 #006 #007}
+{{ 7: Clay} "#000" #000 #fdf4ed #e6dbd4 #6e300d #bcaea2 #000 #444 grey #813b3b #000 #c6b4ac - #d5c9c1 #000 #FBFB95 #e1dfde #a20000 #76b2f1 #005 #006 #007}
+{{ 8: Dawn} "#08085D" #030358 #FFFFFF #e4fafa #794545 #a3dce5 #000 #195999 grey #ae4d4d #000 #99d2db - #d3e9e9 #000 #FBFB96 #dbe9ed #a20000 #76b2f1 #005 #006 #007}
+{{ 9: Sky} "#102433" #0A1D33 #d0fdff #bdf6ff #713d3d #95ced7 #000 #195999 grey #a94848 #000 #9ad3dc - #b1eaf3 #000 #FBFB95 #c0e9ef #a20000 #76b2f1 #005 #006 #007}
+{{10: Florid} "#000" #004000 #e4fce4 #fff #8b4545 #93e493 #0F2D0F #185818 grey #9a481a #004000 #a7f8a7 - #d8e7d8 #000 #FBFB96 #d7e6d7 #a20000 #76b2f1 #005 #006 #007}
+{{11: LightGreen} "#122B05" #091900 #edffed #DEF8DE #764242 #A8CCA8 #000 #185818 grey #a34242 #000 #A8CCA8 - #cde7cd #000 #FBFB96 #dee9de #a20000 #76b2f1 #005 #006 #007}
+{{12: InverseGreen} "#122B05" #091900 #e5ffe1 #d7f1d7 #6d3939 #a7cba7 #000 #185818 grey #a94848 #000 #afd3af - #c9e3c9 #000 #FBFB96 #d6e8d5 #a20000 #76b2f1 #005 #006 #007}
+{{13: GreenPeace} "#001000" #001000 #e1ffdd #cfe4cf #733f3f #a5c3a1 #000 #185818 grey #af4e4e #000 #9cb694 - #c1dbc1 #000 #FBFB96 #d2e1d2 #a20000 #76b2f1 #005 #006 #007}
+{{14: African} "#000" #000 #fff #ffffe7 #8a4444 #ffd797 #000 #682800 #7e7e7e #a44a2d #000 #f7bf91 - #e7e7cf #000 #eded89 #ededd5 #a20000 #76b2f1 #005 #006 #007}
+{{15: African1} "#000" #000 #fff #ebebd3 #8a4444 #ebc383 #000 #682800 #7e7e7e #9d4326 #000 #f7bf91 - #dbdbc3 #000 #eded89 #ededd5 #a20000 #76b2f1 #005 #006 #007}
+{{16: African2} "#000" #000 #f7f7dc #dedbb4 #8e4848 #f2b482 #000 #682800 grey #9f4528 #000 #e6ae80 - #ccc9a2 #000 #fbfb74 #e7e7cb #a20000 #76b2f1 #005 #006 #007}
+{{17: African3} "#000" #000 #e2deb5 #ccc9a6 #813b3b #e1a97b #000 #682800 grey #a44a2d #000 #e6ae80 - #bbb895 #000 #fbfb74 #c9c9b0 #c10000 #76b2f1 #005 #006 #007}
+{{18: Yellowstone} "#00002f" #00003c #ffffd1 #d5d3b7 #7b3e30 #d59e6d #000 #682800 grey #93391c #000000 #cfab86 - #c2c0a4 #000 #ffff45 #e6e6bb #a30000 #76b2f1 #005 #006 #007}
+{{19: Notebook} "#000" #000 #e9e1c8 #d2ccb8 #692323 #d59d6f #000 #682800 #7e7e7e #92381b #000 #c09c77 - #dbd5c1 #000 #eded89 #dad2b9 #a20000 #76b2f1 #005 #006 #007}
+{{20: Notebook1} "#000" #000 #dad2b9 #bfb9a5 #692323 #d59d6f #000 #682800 #707070 #92381b #000 #ba9671 - #c5bfab #000 #eded89 #ccc4ab #a20000 #76b2f1 #005 #006 #007}
+{{21: Notebook2} "#000" #000 #d1c9b0 #b1ab97 #692323 #d59d6f #000 #682800 #606060 #92381b #000 #c38b5d - #bdb7a3 #000 #eded89 #c1b9a0 #980000 #76b2f1 #005 #006 #007}
+{{22: Notebook3} "#000" #000 #c2baa1 #a6a08c #793333 #cb9365 #000 #682800 #505050 #973d20 #000 #d59d6f - #b3ad99 #000 #eded89 #b2aa91 #7b1010 #76b2f1 #005 #006 #007}
+{{23: Darcula} "#ececec" #c7c7c7 #272727 #323232 #93baf6 #2F5692 #e1e1e1 #f4f49f grey #769dd9 #fff #2c538f - #444444 #000 #aaaa6d #343434 #ffc341 #76b2f1 #005 #006 #007}
+{{24: Dusk} "#ececec" #ececec #1a1f21 #262b2d #9fc99f #217346 #FFF #f4f49f #585d5f #99c399 #fff #225c3b - #363b3d #000 #9d9d60 #23282a #ffc341 #99dd99 #005 #006 #007}
+{{25: AwDark} "#F0E8E8" #E7E7E7 #1f2223 #232829 #77b3f2 #215d9c #fff #f4f49f grey #5793d2 #fff #0d4988 - #313637 #000 #9d9d60 #292e2f #ffc341 #76b2f1 #005 #006 #007}
+{{26: AzureDark} "#ececec" #c7c7c7 #272727 #393939 #7fd5ff #0a89c1 #FFF #f4f49f grey #33b2ff #ffffff #0281b9 - #4a4a4a #000 #aaaa6d #383838 #ffc341 #76b2f1 #005 #006 #007}
+{{27: ForestDark} "#ececec" #c7c7c7 #272727 #393939 #a3cda3 #217346 #FFF #42ff42 grey #84ae84 #fff #247649 - #4a4a4a #000 #aaaa6d #383838 #efaf6f #99dd99 #005 #006 #007}
+{{28: SunValleyDark} "#dfdfdf" #dddddd #131313 #252525 #83cee9 #2a627f #FFF #f4f49f #6f6f6f #63a1c3 #fff #18506d - #323232 #000 #9d9d60 #2a2a2a #efaf6f #4273eb #005 #006 #007}
+{{29: Dark1} "#E0D9D9" #C4C4C4 #212121 #292929 #de9e5e #6c6c6c #000 #f4f49f #606060 #ba8d4d #000 #767676 - #363636 #000 #9d9d60 #292929 #ffc341 #76b2f1 #005 #006 #007}
+{{30: Dark2} "#bebebe" #bebebe #1f1f1f #262626 #de9e5e #6b6b6b #000 #f4f49f #616161 #b28545 #000 #767676 - #323232 #000 #9d9d60 #262626 #ffc341 #76b2f1 #005 #006 #007}
+{{31: Dark3} "#bebebe" #bebebe #0a0a0a #232323 #de9e5e #6a6a6a #000 #f4f49f #616161 #aa7d3d #000 #767676 - #303030 #000 #9d9d60 #131313 #ffc341 #76b2f1 #005 #006 #007}
+{{32: Oscuro} "#f1f1f1" #ffffff #314242 #3e5959 #f1b479 #6c8787 #fff #42ff42 #afafaf #d3a051 #fff #5b7676 - #4d6868 #000 #aaaa6d #425353 #ffc341 #94e2b8 #005 #006 #007}
+{{33: Oscuro1} "#e3e3e3" #f7f7f7 #233434 #304b4b #e3a66b #5e7979 #fff #42ff42 #a1a1a1 #d6a354 #fff #4e6969 - #3f5a5a #000 #aaaa6d #344545 #ffcb8b #86d4aa #005 #006 #007}
+{{34: Oscuro2} "#d5d5d5" #f1f1f1 #152626 #223d3d #d5985d #506b6b #fff #42ff42 #939393 #c69344 #fff #435e5e - #314c4c #000 #9d9d60 #263737 #ffc585 #78c69c #005 #006 #007}
+{{35: Oscuro3} "#c7c7c7" #eaeaea #071818 #142f2f #dfa267 #425d5d #fff #42ff42 #858585 #ba8738 #fff #324d4d - #233e3e #000 #9d9d60 #182929 #e9ae6e #6ab88e #005 #006 #007}
+{{36: MildDark} "#d2d2d2" #ffffff #223142 #2D435B #3ddbdb #517997 #fff #00ffff grey #18b6b6 #fff #3e6684 - #3a5068 #000 #aaaa6d #324152 #ffc341 #76b2f1 #005 #006 #007}
+{{37: MildDark1} "#c8c8c8" #f7f7f7 #1a2937 #24384f #3cdada #466e8c #fff #00ffff #757575 #19b7b7 #fff #3a6280 - #31455c #000 #aaaa6d #2b3a48 #f1b171 #76b2f1 #005 #006 #007}
+{{38: MildDark2} "#e2e2e2" #f1f1f1 #0e1d2c #1B3048 #3edddd #426a88 #fff #00ffff #6c6c6c #0ba9a9 #fff #355d7b - #2a3f57 #000 #9d9d60 #1d2c3b #f4b474 #76b2f1 #005 #006 #007}
+{{39: MildDark3} "#dbdbdb" #eaeaea #000c1b #031830 #35d4d4 #375f7d #fff #00ffff #6c6c6c #019f9f #fff #2f5775 - #162b43 #000 #9d9d60 #0a1f37 #e5a565 #76b2f1 #005 #006 #007}
+{{40: Inkpot} "#d3d3ff" #AFC2FF #16161f #1E1E27 #e39f51 #525293 #fff #f4f49f #6e6e6e #b57535 #fff #4d4d8e - #292936 #000 #9d9d60 #202029 #e7b070 #7a7abb #005 #006 #007}
+{{41: Quiverly} "#cdd8d8" #cdd8d8 #2b303b #333946 #eda95b #6f7582 #fff #f4f49f #757575 #cd8d4d #000 #9197a4 - #414650 #000 #aaaa6d #323742 #ffc341 #76b2f1 #005 #006 #007}
+{{42: Monokai} "#f8f8f2" #f8f8f2 #353630 #4e5044 #ffbb6d #707070 #fff #f4f49f #9a9a9a #db9e63 #000 #777777 - #46473d #000 #b7b77a #3c3d37 #ffc888 #cd994b #005 #006 #007}
+{{43: TKE Default} "#dbdbdb" #dbdbdb #000 #282828 #d3a85a #0a0acc #fff #f4f49f #6a6a6a #c58545 #fff #0000d3 - #383838 #000 #9d9d60 #0d0e0e #e5a565 #76b2f1 #005 #006 #007}
+{{44: Magenta} "#E8E8E8" #F0E8E8 #381e44 #4A2A4A #ffbb6d #846484 #fff #f4f49f grey #d6995e #000 #ad8dad - #573757 #000 #9d9d60 #42284e #ffc888 #ffafff #005 #006 #007}
+{{45: Red} "#fff" #e9e9e6 #340202 #440702 #ffbb6d #b05e5e #fff #f4f49f #828282 #ce9156 #000 #ba6868 - #521514 #000 #9d9d60 #461414 #ffcf8f #ff9a9a #005 #006 #007}
+{{46: Chocolate} "#d6d1ab" #d6d1ab #251919 #402020 #ebb474 #664D4D #fff #f4f49f #828282 #c08040 #fff #583f3f - #432a2a #000 #aaaa6d #2d2121 #eeb777 #cf9292 #005 #006 #007}
+{{47: Desert} "#fff" #fff #47382d #5a4b40 #ffbb6d #85766b #fff #f4f49f #a2a2a2 #d4975c #fff #7f7065 - #695a4f #000 #aaaa6d #503f34 #ffc341 #ead79b #005 #006 #007}
 }
   set ::apave::_CS_(initall) 1
   set ::apave::_CS_(initWM) 1
@@ -119,7 +119,7 @@ namespace eval ::apave {
   }
 }
 
-# _____________________________ Misc procs ________________________________ #
+# _____________________________ Common procs ________________________________ #
 
 proc ::iswindows {} {
 
@@ -132,8 +132,7 @@ proc ::islinux {} {
   # Checks if the platform is Linux.
   return [expr {$::tcl_platform(platform) eq "unix"} ? 1: 0]
 }
-
-#########################################################################
+#_______________________
 
 proc ::apave::mc {msg} {
   # Gets a localized version of a message.
@@ -143,8 +142,110 @@ proc ::apave::mc {msg} {
   if {[info exists _MC_($msg)]} {return $_MC_($msg)}
   return $msg
 }
+#_______________________
 
-#########################################################################
+proc ::apave::getN {sn {defn 0} {min ""} {max ""}} {
+
+  # Gets a number from a string
+  #   sn - string containing a number
+  #   defn - default value when sn is not a number
+  #   min - minimal value allowed
+  #   max - maximal value allowed
+
+  if {$sn eq "" || [catch {set sn [expr {$sn}]}]} {set sn $defn}
+  if {$max ne ""} {
+    set sn [expr {min($max,$sn)}]
+  }
+  if {$min ne ""} {
+    set sn [expr {max($min,$sn)}]
+  }
+  return $sn
+}
+#_______________________
+
+proc ::apave::openDoc {url} {
+
+  # Opens a document.
+  #   url - document's file name, www link, e-mail etc.
+
+  set commands {xdg-open open start}
+  foreach opener $commands {
+    if {$opener eq "start"} {
+      set command [list {*}[auto_execok start] {}]
+    } else {
+      set command [auto_execok $opener]
+    }
+    if {[string length $command]} {
+      break
+    }
+  }
+  if {[string length $command] == 0} {
+    puts "ERROR: couldn't find any opener"
+  }
+  # remove the tailing " &" (as e_menu can set)
+  set url [string trimright $url]
+  if {[string match "* &" $url]} {set url [string range $url 0 end-2]}
+  set url [string trim $url]
+  if {[catch {exec {*}$command $url &} error]} {
+    puts "ERROR: couldn't execute '$command':\n$error"
+  }
+}
+#_______________________
+
+proc ::apave::countChar {str ch} {
+  # Counts a character in a string.
+  #   str - a string
+  #   ch - a character
+  #
+  # Returns a number of non-escaped occurences of character *ch* in
+  # string *str*.
+  #
+  # See also:
+  # [wiki.tcl-lang.org](https://wiki.tcl-lang.org/page/Reformatting+Tcl+code+indentation)
+
+  set icnt 0
+  while {[set idx [string first $ch $str]] >= 0} {
+    set backslashes 0
+    set nidx $idx
+    while {[string equal [string index $str [incr nidx -1]] \\]} {
+      incr backslashes
+    }
+    if {$backslashes % 2 == 0} { incr icnt }
+    set str [string range $str [incr idx] end]
+  }
+  return $icnt
+}
+#_______________________
+
+proc ::apave::blinkWidget {w {fg #000} {bg #fff} {fg2 {}} {bg2 red} \
+  {pause 1000} {count -1} {mode 1}} {
+  # Makes a widget blink.
+  #   w - the widget's path
+  #   fg - normal foreground color
+  #   bg - normal background color
+  #   fg2 - blinking foreground color (if {}, stops the blinking)
+  #   bg2 - blinking background color
+  #   pause - pause in millisec between blinkings
+  #   count - means how many times do blinking
+  #   mode - for recursive calls
+
+  if {![winfo exists $w]} return
+  if {$count==0 || $fg2 eq {}} {
+    $w configure -foreground $fg
+    $w configure -background $bg
+  } elseif {$mode==1} {
+    incr count -1
+    $w configure -foreground $fg2
+    $w configure -background $bg2
+    after $pause ::apave::blinkWidget $w $fg $bg $fg2 $bg2 $pause $count 2
+  } elseif {$mode==2} {
+    $w configure -foreground $fg
+    $w configure -background $bg
+    after $pause ::apave::blinkWidget $w $fg $bg $fg2 $bg2 $pause $count 1
+  }
+}
+
+## ________________________ Inits _________________________ ##
 
 proc ::apave::initPOP {w} {
 
@@ -160,8 +261,7 @@ proc ::apave::initPOP {w} {
     }
   }
 }
-
-#########################################################################
+#_______________________
 
 proc ::apave::initStyles {} {
 
@@ -185,7 +285,7 @@ proc ::apave::initStyles {} {
   ttk::style layout    TButtonWestBold [ttk::style layout TButton]
 
   ttk::style configure TButtonWestHL {*}[ttk::style configure TButton]
-  ttk::style configure TButtonWestHL -anchor w -foreground [lindex [obj csGet] 9]
+  ttk::style configure TButtonWestHL -anchor w -foreground [lindex [obj csGet] 4]
   ttk::style map       TButtonWestHL {*}[ttk::style map TButton]
   ttk::style layout    TButtonWestHL [ttk::style layout TButton]
 
@@ -194,8 +294,7 @@ proc ::apave::initStyles {} {
   ttk::style map       TMenuButtonWest {*}[ttk::style map TMenubutton]
   ttk::style layout    TMenuButtonWest [ttk::style layout TMenubutton]
 }
-
-#########################################################################
+#_______________________
 
 proc ::apave::initStylesFS {args} {
 
@@ -241,8 +340,7 @@ proc ::apave::initStylesFS {args} {
   ttk::style map       TButtonWestBoldFS {*}[ttk::style map TButton]
   ttk::style layout    TButtonWestBoldFS [ttk::style layout TButton]
 }
-
-#########################################################################
+#_______________________
 
 proc ::apave::initWM {args} {
 
@@ -295,8 +393,7 @@ proc ::apave::initWM {args} {
   initStyles
   return
 }
-
-#########################################################################
+#_______________________
 
 proc ::apave::cs_Active {{flag ""}} {
 
@@ -308,7 +405,46 @@ proc ::apave::cs_Active {{flag ""}} {
   return $::apave::_CS_(isActive)
 }
 
-#########################################################################
+## ________________________ Property _________________________ ##
+
+proc ::apave::setProperty {name args} {
+
+  # Sets a property's value as "application-wide".
+  #   name - name of property
+  #   args - value of property
+  #
+  # If *args* is omitted, the method returns a property's value.
+  #
+  # If *args* is set, the method sets a property's value as $args.
+
+  variable _AP_Properties
+  switch [llength $args] {
+    0 {return [getProperty $name]}
+    1 {return [set _AP_Properties($name) [lindex $args 0]]}
+  }
+  puts -nonewline stderr \
+    "Wrong # args: should be \"::apave::setProperty propertyname ?value?\""
+  return -code error
+}
+#_______________________
+
+proc ::apave::getProperty {name {defvalue ""}} {
+  # Gets a property's value as "application-wide".
+  #   name - name of property
+  #   defvalue - default value
+  #
+  # If the property had been set, the method returns its value.
+  #
+  # Otherwise, the method returns the default value (`$defvalue`).
+
+  variable _AP_Properties
+  if {[info exists _AP_Properties($name)]} {
+    return $_AP_Properties($name)
+  }
+  return $defvalue
+}
+
+## ________________________ Color schemes _________________________ ##
 
 proc ::apave::cs_Non {} {
 
@@ -316,8 +452,7 @@ proc ::apave::cs_Non {} {
 
   return -3
 }
-
-#########################################################################
+#_______________________
 
 proc ::apave::cs_Min {} {
 
@@ -340,27 +475,7 @@ proc ::apave::cs_MaxBasic {} {
   return $::apave::_CS_(STDCS)
 }
 
-###########################################################################
-
-proc ::apave::getN {sn {defn 0} {min ""} {max ""}} {
-
-  # Gets a number from a string
-  #   sn - string containing a number
-  #   defn - default value when sn is not a number
-  #   min - minimal value allowed
-  #   max - maximal value allowed
-
-  if {$sn eq "" || [catch {set sn [expr {$sn}]}]} {set sn $defn}
-  if {$max ne ""} {
-    set sn [expr {min($max,$sn)}]
-  }
-  if {$min ne ""} {
-    set sn [expr {max($min,$sn)}]
-  }
-  return $sn
-}
-
-###########################################################################
+## ________________________ Opfions _________________________ ##
 
 proc ::apave::parseOptionsFile {strict inpargs args} {
 
@@ -441,8 +556,7 @@ proc ::apave::parseOptionsFile {strict inpargs args} {
   }
   return [list $retlist [string trimright $retfile]]
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::parseOptions {opts args} {
 
@@ -462,8 +576,7 @@ proc ::apave::parseOptions {opts args} {
   }
   return $retlist
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::extractOptions {optsVar args} {
 
@@ -482,8 +595,7 @@ proc ::apave::extractOptions {optsVar args} {
   }
   return $retlist
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::getOption {optname args} {
 
@@ -498,8 +610,7 @@ proc ::apave::getOption {optname args} {
   set optvalue [lindex [::apave::parseOptions $args $optname ""] 0]
   return $optvalue
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::putOption {optname optvalue args} {
 
@@ -521,8 +632,7 @@ proc ::apave::putOption {optname optvalue args} {
   if {$doadd} {lappend optlist $optname $optvalue}
   return $optlist
 }
-
-#########################################################################
+#_______________________
 
 proc ::apave::removeOptions {options args} {
 
@@ -553,7 +663,7 @@ proc ::apave::removeOptions {options args} {
   return $options
 }
 
-###########################################################################
+## ________________________ Text file _________________________ ##
 
 proc ::apave::error {{fileName ""}} {
   # Gets the error's message at reading/writing.
@@ -565,8 +675,7 @@ proc ::apave::error {{fileName ""}} {
   }
   return "Error of access to\n\"$fileName\"\n\n$_PU_opts(_ERROR_)"
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::textsplit {textcont} {
   # Splits a text's contents by EOLs. Those inventors of EOLs...
@@ -574,8 +683,7 @@ proc ::apave::textsplit {textcont} {
 
   return [split [string map [list \r\n \n \r \n] $textcont] \n]
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::textEOL {{EOL "-"}} {
   # Gets/sets End-of-Line for text reqding/writing.
@@ -609,8 +717,7 @@ proc ::apave::textChanConfigure {channel {coding {}} {eol {}}} {
     chan configure $channel -translation $eol
   }
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::logName {fname} {
   # Sets a log file's name.
@@ -620,8 +727,7 @@ proc ::apave::logName {fname} {
   variable _PU_opts;
   set _PU_opts(_LOGFILE_) [file normalize $fname]
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::logMessage {msg} {
   # Logs messages to a log file.
@@ -645,8 +751,7 @@ proc ::apave::logMessage {msg} {
   close $chan
   puts "$_PU_opts(_LOGFILE_) - $msg"
 }
-
-###########################################################################
+#_______________________
 
 proc ::apave::readTextFile {fileName {varName ""} {doErr 0}} {
 
@@ -670,128 +775,75 @@ proc ::apave::readTextFile {fileName {varName ""} {doErr 0}} {
   }
   return $fvar
 }
+#_______________________
 
-###########################################################################
-
-proc ::apave::writeTextFile {fileName {varName ""} {doErr 0}} {
+proc ::apave::writeTextFile {fileName {varName ""} {doErr 0} {doSave 1}} {
 
   # Writes to a text file.
   #   fileName - file name
   #   varName - variable name for file content or ""
   #   doErr - if 'true', exit at errors with error message
+  #   doSave - if 'true', saves an empty file, else deletes it
   #
   # Returns "yes" if the file was saved successfully.
 
   variable _PU_opts
-  if {$varName ne ""} {
+  if {$varName ne {}} {
     upvar $varName contents
   } else {
-    set contents ""
+    set contents {}
   }
-  if {[catch {set chan [open $fileName w]} _PU_opts(_ERROR_)]} {
-    if {$doErr} {error [::apave::error $fileName]}
+  set res yes
+  if {!$doSave && [string trim $contents] eq {}} {
+    if {[catch {file delete $fileName} _PU_opts(_ERROR_)]} {
+      set res no
+    } else {
+      logMessage "delete $fileName"
+    }
+  } elseif {[catch {set chan [open $fileName w]} _PU_opts(_ERROR_)]} {
     set res no
   } else {
     ::apave::textChanConfigure $chan
     puts -nonewline $chan $contents
     close $chan
     logMessage "write $fileName"
-    set res yes
   }
+  if {!$res && $doErr} {error [::apave::error $fileName]}
   return $res
 }
 
-###########################################################################
+## ________________________ Binds _________________________ ##
 
-proc ::apave::openDoc {url} {
+proc ::apave::bindToEvent {w event args} {
 
-  # Opens a document.
-  #   url - document's file name, www link, e-mail etc.
+  # Binds an event on a widget to a command.
+  #   w - the widget's path
+  #   event - the event
+  #   args - the command
 
-  set commands {xdg-open open start}
-  foreach opener $commands {
-    if {$opener eq "start"} {
-      set command [list {*}[auto_execok start] {}]
-    } else {
-      set command [auto_execok $opener]
-    }
-    if {[string length $command]} {
-      break
-    }
-  }
-  if {[string length $command] == 0} {
-    puts "ERROR: couldn't find any opener"
-  }
-  # remove the tailing " &" (as e_menu can set)
-  set url [string trimright $url]
-  if {[string match "* &" $url]} {set url [string range $url 0 end-2]}
-  set url [string trim $url]
-  if {[catch {exec {*}$command $url &} error]} {
-    puts "ERROR: couldn't execute '$command':\n$error"
-  }
+  ::baltip::my::BindToEvent $w $event {*}$args
 }
+#_______________________
 
-proc ::apave::setProperty {name args} {
+proc ::apave::bindTextagToEvent {w tag event args} {
+  # Binds an event on a text tag to a command.
+  #   w - the widget's path
+  #   tag - the tag
+  #   event - the event
+  #   args - the command
 
-  # Sets a property's value as "application-wide".
-  #   name - name of property
-  #   args - value of property
-  #
-  # If *args* is omitted, the method returns a property's value.
-  #
-  # If *args* is set, the method sets a property's value as $args.
-
-  variable _AP_Properties
-  switch [llength $args] {
-    0 {return [getProperty $name]}
-    1 {return [set _AP_Properties($name) [lindex $args 0]]}
-  }
-  puts -nonewline stderr \
-    "Wrong # args: should be \"::apave::setProperty propertyname ?value?\""
-  return -code error
+  ::baltip::my::BindTextagToEvent $w $tag $event {*}$args
 }
+#_______________________
 
-###########################################################################
+proc ::apave::bindCantagToEvent {w tag event args} {
+  # Binds an event on a canvas tag to a command.
+  #   w - the widget's path
+  #   tag - the tag
+  #   event - the event
+  #   args - the command
 
-proc ::apave::getProperty {name {defvalue ""}} {
-  # Gets a property's value as "application-wide".
-  #   name - name of property
-  #   defvalue - default value
-  #
-  # If the property had been set, the method returns its value.
-  #
-  # Otherwise, the method returns the default value (`$defvalue`).
-
-  variable _AP_Properties
-  if {[info exists _AP_Properties($name)]} {
-    return $_AP_Properties($name)
-  }
-  return $defvalue
-}
-
-
-proc ::apave::countChar {str ch} {
-  # Counts a character in a string.
-  #   str - a string
-  #   ch - a character
-  #
-  # Returns a number of non-escaped occurences of character *ch* in
-  # string *str*.
-  #
-  # See also:
-  # [wiki.tcl-lang.org](https://wiki.tcl-lang.org/page/Reformatting+Tcl+code+indentation)
-
-  set icnt 0
-  while {[set idx [string first $ch $str]] >= 0} {
-    set backslashes 0
-    set nidx $idx
-    while {[string equal [string index $str [incr nidx -1]] \\]} {
-      incr backslashes
-    }
-    if {$backslashes % 2 == 0} { incr icnt }
-    set str [string range $str [incr idx] end]
-  }
-  return $icnt
+  ::baltip::my::BindCantagToEvent $w $tag $event {*}$args
 }
 
 # ________________________ ObjectProperty _________________________ #
@@ -850,8 +902,7 @@ oo::class create ::apave::ObjectProperty {
       "Wrong # args: should be \"[namespace current] setProperty propertyname ?value?\""
     return -code error
   }
-
-  ###########################################################################
+  #_______________________
 
   method getProperty {name {defvalue ""}} {
     # Gets an property's value as "object-wide".
@@ -868,30 +919,30 @@ oo::class create ::apave::ObjectProperty {
     return $defvalue
   }
 
-
-  ## _________________ End of ::apave::ObjectProperty _________________ ##
+  ## _________________ EONS ObjectProperty _________________ ##
 
 }
 
-
 # ________________________ ObjectTheming _________________________ #
-# Another bit - theming manager
 
 oo::class create ::apave::ObjectTheming {
 
   mixin ::apave::ObjectProperty
 
+## ________________________ Inits _________________________ ##
+
   constructor {args} {
+
     my InitCS
     # ObjectTheming can play solo or be a mixin
     if {[llength [self next]]} { next {*}$args }
   }
+  #_______________________
 
   destructor {
     if {[llength [self next]]} next
   }
-
-  ###########################################################################
+  #_______________________
 
   method InitCS {} {
 
@@ -907,7 +958,7 @@ oo::class create ::apave::ObjectTheming {
     return
   }
 
-  ###########################################################################
+## ________________________ Fonts _________________________ ##
 
   method create_FontsType {type args} {
     # Creates fonts used in apave, with additional options.
@@ -923,8 +974,7 @@ oo::class create ::apave::ObjectTheming {
     font create $name2 -family $::apave::_CS_(textFont) -size $::apave::_CS_(fs) {*}$args
     return [list $name1 $name2]
   }
-
-  ###########################################################################
+  #_______________________
 
   method create_Fonts {} {
     # Creates fonts used in apave.
@@ -940,11 +990,342 @@ oo::class create ::apave::ObjectTheming {
     set ::apave::FONTMAIN "[font actual apaveFontDef]"
     set ::apave::FONTMAINBOLD "[font actual apaveFontDefBold]"
   }
+  #_______________________
 
-  ###########################################################################
+  method basicFontSize {{fs 0} {ds 0}} {
+
+    # Gets/Sets a basic size of font used in apave
+    #    fs - font size
+    #    ds - incr/decr of size
+    #
+    # If 'fs' is omitted or ==0, this method gets it.
+    # If 'fs' >0, this method sets it.
+
+    if {$fs} {
+      set ::apave::_CS_(fs) [expr {$fs + $ds}]
+      my create_Fonts
+      return $::apave::_CS_(fs)
+    } else {
+      return [expr {$::apave::_CS_(fs) + $ds}]
+    }
+  }
+  #_______________________
+
+  method basicDefFont {{deffont ""}} {
+
+    # Gets/Sets a basic default font.
+    #    deffont - font
+    #
+    # If 'deffont' is omitted or =="", this method gets it.
+    # If 'deffont' is set, this method sets it.
+
+    if {$deffont ne ""} {
+      return [set ::apave::_CS_(defFont) $deffont]
+    } else {
+      return $::apave::_CS_(defFont)
+    }
+  }
+  #_______________________
+
+  method basicTextFont {{textfont ""}} {
+
+    # Gets/Sets a basic font used in editing/viewing text widget.
+    #    textfont - font
+    #
+    # If 'textfont' is omitted or =="", this method gets it.
+    # If 'textfont' is set, this method sets it.
+
+    if {$textfont ne ""} {
+      return [set ::apave::_CS_(textFont) $textfont]
+    } else {
+      return $::apave::_CS_(textFont)
+    }
+  }
+  #_______________________
+
+  method boldDefFont {{fs 0}} {
+
+    # Returns a bold default font.
+    #    fs - font size
+
+    if {$fs == 0} {set fs [my basicFontSize]}
+    set bf [font actual basicDefFont]
+    return [dict replace $bf -family [my basicDefFont] -weight bold -size $fs]
+  }
+  #_______________________
+
+  method boldTextFont {{fs 0}} {
+
+    # Returns a bold fixed font.
+    #    fs - font size
+
+    if {$fs == 0} {set fs [expr {2+[my basicFontSize]}]}
+    set bf [font actual TkFixedFont]
+    return [dict replace $bf -family [my basicTextFont] -weight bold -size $fs]
+  }
+
+## ________________________ Color schemes _________________________ ##
+
+  method csFont {fontname} {
+    # Returns attributes of CS font.
+    if {[catch {set font [font configure $fontname]}]} {
+      my create_Fonts
+      set font [font configure $fontname]
+    }
+    return $font
+  }
+
+  method csFontMono {} {
+    # Returns attributes of CS monotype font.
+    return [my csFont apaveFontMono]
+  }
+
+  method csFontDef {} {
+    # Returns attributes of CS default font.
+    return [my csFont apaveFontDef]
+  }
+  #_______________________
+
+  method csDarkEdit {{cs -3}} {
+
+    # Returns a flag "the editor of CS is dark"
+    #   cs - color scheme to be checked (the current one, if not set)
+
+    if {$cs eq -3} {set cs [my csCurrent]}
+    lassign $::apave::_CS_(TONED) csbasic cstoned
+    if {$cs==$cstoned} {set cs $csbasic}
+    return [expr {$cs>22}]
+  }
+  #_______________________
+
+  method csExport {} {
+
+    # TODO
+
+    set theme ""
+    foreach arg {tfg1 tbg1 tfg2 tbg2 tfgS tbgS tfgD tbgD tcur bclr args} {
+      if {[catch {set a "$::apave::_CS_(expo,$arg)"}] || $a==""} {
+        break
+      }
+      append theme " $a"
+    }
+    return $theme
+  }
+  #_______________________
+
+  method csCurrent {} {
+
+    # Gets an index of current color scheme
+
+    return $::apave::_CS_(index)
+  }
+  #_______________________
+
+  method csGetName {{ncolor 0}} {
+
+    # Gets a color scheme's name
+    #   ncolor - index of color scheme
+
+    if {$ncolor < $::apave::_CS_(MINCS)} {
+      return "-2: None"
+    } elseif {$ncolor == $::apave::_CS_(MINCS)} {
+      return "-1: Basic"
+    }
+    return [lindex [my ColorScheme $ncolor] 0]
+  }
+  #_______________________
+
+  method csGet {{ncolor ""}} {
+
+    # Gets a color scheme's colors
+    #   ncolor - index of color scheme
+
+    if {$ncolor eq ""} {set ncolor [my csCurrent]}
+    return [lrange [my ColorScheme $ncolor] 1 end]
+  }
+  #_______________________
+
+  method csSet {{ncolor 0} {win .} args} {
+
+    # Sets a color scheme and applies it to Tk/Ttk widgets.
+    #   ncolor - index of color scheme
+    #   win - window's name
+    #   args - list of colors if ncolor=""
+    #
+    # The `args` can be set as "-doit". In this case the method does set
+    # the `ncolor` color scheme (otherwise it doesn't set the CS if it's
+    # already of the same `ncolor`).
+
+    # The clrtitf, clrinaf etc. had been designed for e_menu. And as such,
+    # they can be used directly, outside of this "color scheming" UI.
+    # They set pairs of related fb/bg:
+    #   clrtitf/clrtitb is item's fg/bg
+    #   clrinaf/clrinab is main fg/bg
+    #   clractf/clractb is active (selection) fg/bg
+    # and separate colors:
+    #   clrhelp is "help" foreground
+    #   clrcurs is "caret" background
+    #   clrgrey is "shadowing" background
+    #   clrhotk is "hotkey/border" foreground
+    #
+    # In color scheming, these colors are transformed to be consistent
+    # with Tk/Ttk's color mechanics.
+    #
+    # Additionally, "grey" color is used as "border color/disabled foreground".
+    #
+    # Returns a list of colors used by the color scheme.
+
+    if {$ncolor == -2} {
+      ttk::style map Treeview -foreground [list readonly grey disabled grey selected black]
+      return {}
+    }
+    if {$ncolor eq {}} {
+      lassign $args \
+        clrtitf clrinaf clrtitb clrinab clrhelp clractb clractf clrcurs clrgrey clrhotk tfgI tbgI fM bM tfgW tbgW tHL2 tbHL chkHL res5 res6 res7
+    } else {
+      foreach cs [list $ncolor $::apave::_CS_(MINCS)] {
+        lassign [my csGet $cs] \
+          clrtitf clrinaf clrtitb clrinab clrhelp clractb clractf clrcurs clrgrey clrhotk tfgI tbgI fM bM tfgW tbgW tHL2 tbHL chkHL res5 res6 res7
+        if {$clrtitf ne ""} break
+        set ncolor $cs
+      }
+      set ::apave::_CS_(index) $ncolor
+    }
+    set fg $clrinaf  ;# main foreground
+    set bg $clrinab  ;# main background
+    set fE $clrtitf  ;# fieldforeground foreground
+    set bE $clrtitb  ;# fieldforeground background
+    set fS $clractf  ;# active/selection foreground
+    set bS $clractb  ;# active/selection background
+    set hh $clrhelp  ;# (not used in cs' theming) title color
+    set gr $clrgrey  ;# (not used in cs' theming) shadowing color
+    set cc $clrcurs  ;# caret's color
+    set ht $clrhotk  ;# hotkey color
+    set grey $gr ;# #808080
+    if {$::apave::_CS_(old) != $ncolor || $args eq "-doit"} {
+      set ::apave::_CS_(old) $ncolor
+      my themeWindow $win [list $fg $bg $fE $bE $fS $bS $grey $bg $cc $ht $hh $tfgI $tbgI $fM $bM $tfgW $tbgW $tHL2 $tbHL $chkHL $res5 $res6 $res7]
+      my UpdateColors
+      my initTooltip
+    }
+    set ::apave::FGMAIN $fg
+    set ::apave::BGMAIN $bg
+    catch {
+      if {[my csDarkEdit $ncolor]} {::baltip::configure -relief groove}
+    }
+    return [list $fg $bg $fE $bE $fS $bS $hh $grey $cc $ht $tfgI $tbgI $fM $bM $tfgW $tbgW $tHL2 $tbHL $chkHL $res5 $res6 $res7]
+  }
+  #_______________________
+
+  method csAdd {newcs {setnew true}} {
+
+    # Registers new color scheme in the list of CS.
+    #   newcs -  CS item
+    #   setnew - if true, sets the CS as current
+    #
+    # Does not register the CS, if it is already registered.
+    #
+    # Returns an index of current CS.
+    #
+    # See also:
+    #   themeWindow
+
+    if {[llength $newcs]<4} {
+      set newcs [my ColorScheme]  ;# CS should be defined
+    }
+    lassign $newcs name tfg2 tfg1 tbg2 tbg1 tfhh - - tcur grey bclr
+    set found $::apave::_CS_(NONCS)
+    set maxcs [::apave::cs_Max]
+    for {set i $::apave::_CS_(MINCS)} {$i<=$maxcs} {incr i} {
+      lassign [my csGet $i] cfg2 cfg1 cbg2 cbg1 cfhh - - ccur
+      if {$cfg2 eq $tfg2 && $cfg1 eq $tfg1 && $cbg2 eq $tbg2 && \
+      $cbg1 eq $tbg1 && $cfhh eq $tfhh && $ccur eq $tcur} {
+        set found $i
+        break
+      }
+    }
+    if {$found == $::apave::_CS_(MINCS) && [my csCurrent] == $::apave::_CS_(NONCS)} {
+      set setnew false ;# no moves from default CS to 'basic'
+    } elseif {$found == $::apave::_CS_(NONCS)} {
+      lappend ::apave::_CS_(ALL) $newcs
+      set found [expr {$maxcs+1}]
+    }
+    if {$setnew} {set ::apave::_CS_(index) [set ::apave::_CS_(old) $found]}
+    return [my csCurrent]
+  }
+  #_______________________
+
+  method csDeleteExternal {} {
+    # Removes all external CS.
+
+    set ::apave::_CS_(ALL) [lreplace $::apave::_CS_(ALL) 48 end]
+
+  }
+  #_______________________
+
+  method csToned {cs hue} {
+    # Make an external CS that has tones (hues) of colors for a CS.
+    #   cs - internal apave CS to be toned
+    #   hue - a percent to get light (> 0) or dark (< 0) tones
+    # This method allows only one external CS, eliminating others.
+    # Returns: "yes" if the CS was toned
+
+    if {$cs <= $::apave::_CS_(NONCS) || $cs > $::apave::_CS_(STDCS)} {
+      return no
+    }
+    my csDeleteExternal
+    set CS [my csGet $cs]
+    set mainc [my csMainColors]
+    set hue [expr {(100.0+$hue)/100.0}]
+    foreach i [my csMapTheme] {
+      set color [lindex $CS $i]
+      if {$i in $mainc} {
+        set color [string map {black #000000 white #ffffff grey #808080 \
+          red #ff0000 yellow #ffff00 orange #ffa500 #000 #000000 #fff #ffffff} $color]
+        scan $color "#%2x%2x%2x" R G B
+        foreach valname {R G B} {
+          set val [expr {int([set $valname]*$hue)}]
+          set $valname [expr {max(min($val,255),0)}]
+        }
+        set color [format "#%02x%02x%02x" $R $G $B]
+      }
+      lappend TWargs $color
+    }
+    my themeWindow . $TWargs no
+    set ::apave::_CS_(TONED) [list $cs [my csCurrent]]
+    return yes
+
+  }
+
+# _______________________________________________________________________ #
+
+  method csMainColors {} {
+    # Returns a list of main colors' indices of CS.
+    # See also: csMapTheme
+
+    return [list 0 1 2 3 5 10 11 13 16]
+  }
+  #_______________________
+
+  method csMapTheme {} {
+    # Returns a map of CS / themeWindow method colors.
+    #
+    # The map is a list of indices in CS corresponding to themeWindow's args.
+    #
+    # CS record is:
+    # 0-itemfg 1-mainfg 2-itembg 3-mainbg 4-itemsHL 5-actbg 6-actfg 7-cursor 8-greyed 9-hot \
+  10-emfg 11-embg 12-- 13-menubg 14-winfg 15-winbg 16-itemHL2 ...reserved...
+    #
+    # See also: themeWindow
+  
+    return [list 1 3 0 2 6 5 8 3 7 9 4 10 11 1 13 14 15 16 17 18 19 20 21]
+  }
+
+# ________________________ Theming _________________________ #
+
+## ________________________ Common procs _________________________ ##
 
   method ColorScheme {{ncolor ""}} {
-
     # Gets a full record of color scheme from a list of available ones
     #   ncolor - index of color scheme
 
@@ -993,319 +1374,23 @@ oo::class create ::apave::ObjectTheming {
 
 # _______________________________________________________________________ #
 
-  method basicFontSize {{fs 0} {ds 0}} {
+  method UpdateSelectAttrs {w} {
 
-    # Gets/Sets a basic size of font used in apave
-    #    fs - font size
-    #    ds - incr/decr of size
-    #
-    # If 'fs' is omitted or ==0, this method gets it.
-    # If 'fs' >0, this method sets it.
+    # Updates attributes for selection.
+    #   w - window's name
+    # Some widgets (e.g. listbox) need a work-around to set
+    # attributes for selection in run-time, namely at focusing in/out.
 
-    if {$fs} {
-      set ::apave::_CS_(fs) [expr {$fs + $ds}]
-      my create_Fonts
-      return $::apave::_CS_(fs)
-    } else {
-      return [expr {$::apave::_CS_(fs) + $ds}]
-    }
+    set fD $::apave::_CS_(!FG)
+    set bD $::apave::_CS_(!BG)
+    set f -selectforeground
+    set b -selectbackground
+    lassign [::apave::parseOptions [ttk::style configure .] $f $fD $b $bD] fS bS
+    ::apave::bindToEvent $w <FocusIn>  $w configure $f $fS $b $bS
+    ::apave::bindToEvent $w <FocusOut> $w configure $f $fD $b $bD
+    return
   }
-
-  ###########################################################################
-
-  method basicDefFont {{deffont ""}} {
-
-    # Gets/Sets a basic default font.
-    #    deffont - font
-    #
-    # If 'deffont' is omitted or =="", this method gets it.
-    # If 'deffont' is set, this method sets it.
-
-    if {$deffont ne ""} {
-      return [set ::apave::_CS_(defFont) $deffont]
-    } else {
-      return $::apave::_CS_(defFont)
-    }
-  }
-
-  ###########################################################################
-
-  method boldDefFont {{fs 0}} {
-
-    # Returns a bold default font.
-    #    fs - font size
-
-    if {$fs == 0} {set fs [my basicFontSize]}
-    set bf [font actual basicDefFont]
-    return [dict replace $bf -family [my basicDefFont] -weight bold -size $fs]
-  }
-
-  ###########################################################################
-
-  method basicTextFont {{textfont ""}} {
-
-    # Gets/Sets a basic font used in editing/viewing text widget.
-    #    textfont - font
-    #
-    # If 'textfont' is omitted or =="", this method gets it.
-    # If 'textfont' is set, this method sets it.
-
-    if {$textfont ne ""} {
-      return [set ::apave::_CS_(textFont) $textfont]
-    } else {
-      return $::apave::_CS_(textFont)
-    }
-  }
-
-  ###########################################################################
-
-  method boldTextFont {{fs 0}} {
-
-    # Returns a bold fixed font.
-    #    fs - font size
-
-    if {$fs == 0} {set fs [expr {2+[my basicFontSize]}]}
-    set bf [font actual TkFixedFont]
-    return [dict replace $bf -family [my basicTextFont] -weight bold -size $fs]
-  }
-
-  ###########################################################################
-
-  method csFont {fontname} {
-    # Returns attributes of CS font.
-    if {[catch {set font [font configure $fontname]}]} {
-      my create_Fonts
-      set font [font configure $fontname]
-    }
-    return $font
-  }
-
-  method csFontMono {} {
-    # Returns attributes of CS monotype font.
-    return [my csFont apaveFontMono]
-  }
-
-  method csFontDef {} {
-    # Returns attributes of CS default font.
-    return [my csFont apaveFontDef]
-  }
-
-  ###########################################################################
-
-  method csDarkEdit {{cs -3}} {
-
-    # Returns a flag "the editor of CS is dark"
-    #   cs - color scheme to be checked (the current one, if not set)
-
-    if {$cs eq -3} {set cs [my csCurrent]}
-    lassign $::apave::_CS_(TONED) csbasic cstoned
-    if {$cs==$cstoned} {set cs $csbasic}
-    return [expr {$cs>22}]
-  }
-
-  ###########################################################################
-
-  method csExport {} {
-
-    # TODO
-
-    set theme ""
-    foreach arg {tfg1 tbg1 tfg2 tbg2 tfgS tbgS tfgD tbgD tcur bclr args} {
-      if {[catch {set a "$::apave::_CS_(expo,$arg)"}] || $a==""} {
-        break
-      }
-      append theme " $a"
-    }
-    return $theme
-  }
-
-  ###########################################################################
-
-  method csCurrent {} {
-
-    # Gets an index of current color scheme
-
-    return $::apave::_CS_(index)
-  }
-
-  ###########################################################################
-
-  method csGetName {{ncolor 0}} {
-
-    # Gets a color scheme's name
-    #   ncolor - index of color scheme
-
-    if {$ncolor < $::apave::_CS_(MINCS)} {
-      return "-2: None"
-    } elseif {$ncolor == $::apave::_CS_(MINCS)} {
-      return "-1: Basic"
-    }
-    return [lindex [my ColorScheme $ncolor] 0]
-  }
-
-  ###########################################################################
-
-  method csGet {{ncolor ""}} {
-
-    # Gets a color scheme's colors
-    #   ncolor - index of color scheme
-
-    if {$ncolor eq ""} {set ncolor [my csCurrent]}
-    return [lrange [my ColorScheme $ncolor] 1 end]
-  }
-
-  ###########################################################################
-
-  method csSet {{ncolor 0} {win .} args} {
-
-    # Sets a color scheme and applies it to Tk/Ttk widgets.
-    #   ncolor - index of color scheme
-    #   win - window's name
-    #   args - list of colors if ncolor=""
-    #
-    # The `args` can be set as "-doit". In this case the method does set
-    # the `ncolor` color scheme (otherwise it doesn't set the CS if it's
-    # already of the same `ncolor`).
-
-    # The clrtitf, clrinaf etc. had been designed for e_menu. And as such,
-    # they can be used directly, outside of this "color scheming" UI.
-    # They set pairs of related fb/bg:
-    #   clrtitf/clrtitb is item's fg/bg
-    #   clrinaf/clrinab is main fg/bg
-    #   clractf/clractb is active (selection) fg/bg
-    # and separate colors:
-    #   clrhelp is "help" foreground
-    #   clrcurs is "caret" background
-    #   clrgrey is "shadowing" background
-    #   clrhotk is "hotkey/border" foreground
-    #
-    # In color scheming, these colors are transformed to be consistent
-    # with Tk/Ttk's color mechanics.
-    #
-    # Additionally, "grey" color is used as "border color/disabled foreground".
-    #
-    # Returns a list of colors used by the color scheme.
-
-    if {$ncolor == -2} return
-    if {$ncolor eq {}} {
-      lassign $args \
-        clrtitf clrinaf clrtitb clrinab clrhelp clractb clractf clrcurs clrgrey clrhotk tfgI tbgI fM bM tfgW tbgW tHL2 tbHL chkHL res5 res6 res7
-    } else {
-      foreach cs [list $ncolor $::apave::_CS_(MINCS)] {
-        lassign [my csGet $cs] \
-          clrtitf clrinaf clrtitb clrinab clrhelp clractb clractf clrcurs clrgrey clrhotk tfgI tbgI fM bM tfgW tbgW tHL2 tbHL chkHL res5 res6 res7
-        if {$clrtitf ne ""} break
-        set ncolor $cs
-      }
-      set ::apave::_CS_(index) $ncolor
-    }
-    set fg $clrinaf  ;# main foreground
-    set bg $clrinab  ;# main background
-    set fE $clrtitf  ;# fieldforeground foreground
-    set bE $clrtitb  ;# fieldforeground background
-    set fS $clractf  ;# active/selection foreground
-    set bS $clractb  ;# active/selection background
-    set hh $clrhelp  ;# (not used in cs' theming) title color
-    set gr $clrgrey  ;# (not used in cs' theming) shadowing color
-    set cc $clrcurs  ;# caret's color
-    set ht $clrhotk  ;# hotkey color
-    set grey $gr ;# #808080
-    if {$::apave::_CS_(old) != $ncolor || $args eq "-doit"} {
-      set ::apave::_CS_(old) $ncolor
-      my themeWindow $win [list $fg $bg $fE $bE $fS $bS $grey $bg $cc $ht $hh $tfgI $tbgI $fM $bM $tfgW $tbgW $tHL2 $tbHL $chkHL $res5 $res6 $res7]
-      my UpdateColors
-      my initTooltip
-    }
-    set ::apave::FGMAIN $fg
-    set ::apave::BGMAIN $bg
-    return [list $fg $bg $fE $bE $fS $bS $hh $grey $cc $ht $tfgI $tbgI $fM $bM $tfgW $tbgW $tHL2 $tbHL $chkHL $res5 $res6 $res7]
-  }
-
-  ###########################################################################
-
-  method csAdd {newcs {setnew true}} {
-
-    # Registers new color scheme in the list of CS.
-    #   newcs -  CS item
-    #   setnew - if true, sets the CS as current
-    #
-    # Does not register the CS, if it is already registered.
-    #
-    # Returns an index of current CS.
-    #
-    # See also:
-    #   themeWindow
-
-    if {[llength $newcs]<4} {
-      set newcs [my ColorScheme]  ;# CS should be defined
-    }
-    lassign $newcs name tfg2 tfg1 tbg2 tbg1 tfhh - - tcur grey bclr
-    set found $::apave::_CS_(NONCS)
-    set maxcs [::apave::cs_Max]
-    for {set i $::apave::_CS_(MINCS)} {$i<=$maxcs} {incr i} {
-      lassign [my csGet $i] cfg2 cfg1 cbg2 cbg1 cfhh - - ccur
-      if {$cfg2 eq $tfg2 && $cfg1 eq $tfg1 && $cbg2 eq $tbg2 && \
-      $cbg1 eq $tbg1 && $cfhh eq $tfhh && $ccur eq $tcur} {
-        set found $i
-        break
-      }
-    }
-    if {$found == $::apave::_CS_(MINCS) && [my csCurrent] == $::apave::_CS_(NONCS)} {
-      set setnew false ;# no moves from default CS to 'basic'
-    } elseif {$found == $::apave::_CS_(NONCS)} {
-      lappend ::apave::_CS_(ALL) $newcs
-      set found [expr {$maxcs+1}]
-    }
-    if {$setnew} {set ::apave::_CS_(index) [set ::apave::_CS_(old) $found]}
-    return [my csCurrent]
-  }
-
-  ###########################################################################
-
-  method csDeleteExternal {} {
-    # Removes all external CS.
-
-    set ::apave::_CS_(ALL) [lreplace $::apave::_CS_(ALL) 48 end]
-
-  }
-
-  ###########################################################################
-
-  method csToned {cs hue} {
-    # Make an external CS that has tones (hues) of colors for a CS.
-    #   cs - internal apave CS to be toned
-    #   hue - a percent to get light (> 0) or dark (< 0) tones
-    # This method allows only one external CS, eliminating others.
-    # Returns: "yes" if the CS was toned
-
-    if {$cs <= $::apave::_CS_(NONCS) || $cs > $::apave::_CS_(STDCS)} {
-      return no
-    }
-    my csDeleteExternal
-    set CS [my csGet $cs]
-    set mainc [my csMainColors]
-    set hue [expr {(100.0+$hue)/100.0}]
-    foreach i [my csMapTheme] {
-      set color [lindex $CS $i]
-      if {$i in $mainc} {
-        set color [string map {black #000000 white #ffffff grey #808080 \
-          red #ff0000 yellow #ffff00 orange #ffa500 #000 #000000 #fff #ffffff} $color]
-        scan $color "#%2x%2x%2x" R G B
-        foreach valname {R G B} {
-          set val [expr {int([set $valname]*$hue)}]
-          set $valname [expr {max(min($val,255),0)}]
-        }
-        set color [format "#%02x%02x%02x" $R $G $B]
-      }
-      lappend TWargs $color
-    }
-    my themeWindow . $TWargs no
-    set ::apave::_CS_(TONED) [list $cs [my csCurrent]]
-    return yes
-
-  }
-
-# _______________________________________________________________________ #
+  #_______________________
 
   method Ttk_style {oper ts opt val} {
 
@@ -1333,33 +1418,7 @@ oo::class create ::apave::ObjectTheming {
     }
     return
   }
-
-  ###########################################################################
-
-  method csMainColors {} {
-    # Returns a list of main colors' indices of CS.
-    # See also: csMapTheme
-
-    return [list 0 1 2 3 5 13 16]
-  }
-
-  ###########################################################################
-
-  method csMapTheme {} {
-    # Returns a map of CS / themeWindow method colors.
-    #
-    # The map is a list of indices in CS corresponding to themeWindow's args.
-    #
-    # CS record is:
-    # 0-itemfg 1-mainfg 2-itembg 3-mainbg 4-itemsHL 5-actbg 6-actfg 7-cursor 8-greyed 9-hot \
-  10-emfg 11-embg 12-- 13-menubg 14-winfg 15-winbg 16-itemHL2 ...reserved...
-    #
-    # See also: themeWindow
-  
-    return [list 1 3 0 2 6 5 8 3 7 9 4 10 11 1 13 14 15 16 17 18 19 20 21]
-  }
-
-  ###########################################################################
+  #_______________________
 
   method apaveTheme {{theme {}}} {
     # Checks if apave color scheme is used (always for standard ttk themes).
@@ -1368,11 +1427,20 @@ oo::class create ::apave::ObjectTheming {
     if {$theme eq {}} {set theme [ttk::style theme use]}
     return [expr {$theme in {clam alt classic default awdark awlight}}]
   }
+  #_______________________
 
+  method initTooltip {args} {
 
-# ________________________ theme window _________________________ #
+    # Configurates colors and other attributes of tooltip.
+    #  args - options of ::baltip::configure
 
-  ###########################################################################
+    lassign [lrange [my csGet] 14 15] fW bW
+    ::baltip config -fg $fW -bg $bW -global yes
+    ::baltip config {*}$args
+    return
+  }
+
+## ________________________ Theme methods _________________________ ##
 
   method Main_Style {tfg1 tbg1 tfg2 tbg2 tfgS tbgS bclr tc fA bA bD} {
 
@@ -1407,8 +1475,7 @@ oo::class create ::apave::ObjectTheming {
       -background       [list disabled $bD active $bA] \
       -foreground       [list disabled grey active $fA]
   }
-
-  ###########################################################################
+  #_______________________
 
   method themeWindow {win {clrs ""} {isCS true} args} {
 
@@ -1481,7 +1548,7 @@ oo::class create ::apave::ObjectTheming {
       my Ttk_style map $ts -lightcolor [list focus $bclr]
       my Ttk_style map $ts -darkcolor [list focus $bclr]
     }
-    my Ttk_style configure TLabelframe.Label -foreground $bclr ;# $thlp $tfg2
+    my Ttk_style configure TLabelframe.Label -foreground $thlp  ;# bclr $tfg2
     my Ttk_style configure TLabelframe.Label -background $tbg1
     my Ttk_style configure TLabelframe.Label -font $fontdef
     foreach ts {TNotebook TFrame} {
@@ -1668,8 +1735,7 @@ oo::class create ::apave::ObjectTheming {
     my themeMandatory $win {*}$args
     return
   }
-
-  ###########################################################################
+  #_______________________
 
   method themeMandatory {win args} {
 
@@ -1694,29 +1760,7 @@ oo::class create ::apave::ObjectTheming {
     my ThemeChoosers
     return
   }
-
-  ###########################################################################
-
-  method UpdateSelectAttrs {w} {
-
-    # Updates attributes for selection.
-    #   w - window's name
-    # Some widgets (e.g. listbox) need a work-around to set
-    # attributes for selection in run-time, namely at focusing in/out.
-
-    if { [string first "-selectforeground" [bind $w "<FocusIn>"]] < 0} {
-      set com "lassign \[::apave::parseOptions \[ttk::style configure .\] \
-        -selectforeground $::apave::_CS_(!FG) \
-        -selectbackground $::apave::_CS_(!BG)\] fS bS;"
-      bind $w <FocusIn> "+ $com $w configure \
-        -selectforeground \$fS -selectbackground \$bS"
-      bind $w <FocusOut> "+ $w configure -selectforeground \
-        $::apave::_CS_(!FG) -selectbackground $::apave::_CS_(!BG)"
-    }
-    return
-  }
-
-  ###########################################################################
+  #_______________________
 
   method untouchWidgets {args} {
 
@@ -1734,8 +1778,18 @@ oo::class create ::apave::ObjectTheming {
       }
     }
   }
+  #_______________________
 
-  ###########################################################################
+  method themeExternal {args} {
+    # Configures an external dialogue so that its colors accord with a current CS.
+    #   args - list of untouched widgets
+
+    if {[set cs [my csCurrent]] != -2} {
+      foreach untw $args {my untouchWidgets $untw}
+      after idle [list [self] csSet $cs . -doit]  ;# theme the dialogue to be run
+    }
+  }
+  #_______________________
 
   method themeNonThemed {win {addwid {}}} {
 
@@ -1783,8 +1837,7 @@ oo::class create ::apave::ObjectTheming {
     }
     return
   }
-
-  ###########################################################################
+  #_______________________
 
   method NonThemedWidgets {selector} {
 
@@ -1804,8 +1857,7 @@ oo::class create ::apave::ObjectTheming {
       menu menubutton checkbutton radiobutton frame labelframe scale \
       scrollbar canvas tablelist tmatchbox]
   }
-
-  ###########################################################################
+  #_______________________
 
   method NonTtkTheme {win} {
 
@@ -1837,11 +1889,9 @@ oo::class create ::apave::ObjectTheming {
     }
     return
   }
-
-  ###########################################################################
+  #_______________________
 
   method NonTtkStyle {typ {dsbl 0}} {
-
     # Makes styling for non-ttk widgets.
     #   typ - widget's type (the same as in "APave::widgetType" method)
     #   dsbl - `1` for disabled; `2` for readonly; otherwise for all widgets
@@ -1925,7 +1975,8 @@ oo::class create ::apave::ObjectTheming {
     return $att
   }
 
-# _______________________________________________________________________ #
+
+## ________________________ Popup menus _________________________ ##
 
   method ThemePopup {mnu args} {
 
@@ -1948,8 +1999,7 @@ oo::class create ::apave::ObjectTheming {
       }
     }
   }
-
-  ###########################################################################
+  #_______________________
 
   method themePopup {mnu} {
 
@@ -1967,21 +2017,7 @@ oo::class create ::apave::ObjectTheming {
     my themeNonThemed $mnu $mnu
   }
 
-  ###########################################################################
-
-  method initTooltip {args} {
-
-    # Configurates colors and other attributes of tooltip.
-    #  args - options of ::baltip::configure
-
-    if {[info commands ::baltip::configure] eq ""} {package require baltip}
-    lassign [lrange [my csGet] 14 15] fW bW
-    ::baltip config -fg $fW -bg $bW -global yes
-    ::baltip config {*}$args
-    return
-  }
-
-  ###########################################################################
+## ________________________ Tk choosers _________________________ ##
 
   method ThemeChoosers {} {
 
@@ -2029,26 +2065,13 @@ oo::class create ::apave::ObjectTheming {
     }
   }
 
-  ###########################################################################
-
-  method themeExternal {args} {
-    # Configures an external dialogue so that its colors accord with a current CS.
-    #   args - list of untouched widgets
-
-    if {[set cs [my csCurrent]] != -2} {
-      foreach untw $args {my untouchWidgets $untw}
-      after idle [list [self] csSet $cs . -doit]  ;# theme the dialogue to be run
-    }
-  }
-
-
-  ## __________________ End of ::apave::ObjectTheming ___________________ ##
+  ## __________________ EONS ObjectTheming ___________________ ##
 
 }
-################################# EOF #####################################
+
+# ___________________________________ EOF _____________________________________ #
 
 #%   DOCTEST   SOURCE   tests/obbit_1.test
-
-#RUNF1: ../../src/alited.tcl LOG=~/TMP/alited-DEBUG.log DEBUG
+#RUNF1: ../../../src/alited.tcl LOG=~/TMP/alited-DEBUG.log DEBUG
 #-RUNF1: ./tests/test2_pave.tcl
 #RUNF1: ./tests/test2_pave.tcl 10 10 12 "small icons"

@@ -1376,8 +1376,40 @@ poApps InitPackages Tk
 
 poApps InitPackages tdom jpeg scrollutil_tile tablelist_tile \
                     tkdnd poTcllib poTklib poApplib
+
 # (apl
-poApps InitPackages apave baltip
+poApps InitPackages apave
+namespace eval poToolhelp {
+  proc Init { tw { bgColor yellow } { fgColor black } { xoff 0 } { yoff 20 } } {
+    variable pkgInt
+    set pkgInt(tw) $tw
+    ::baltip configure -under [expr {$yoff?3:-16}] \
+      -fg #000 -bg #dede95 -padx 5 -pady 4 -padding 0 -bd 1 -relief raised
+  }
+  proc HideToolhelp {} {}
+  proc AddBinding { w msg args } {
+    variable pkgInt
+    if {![info exists pkgInt(tw)]} {Init stub}
+    set options {}
+    foreach { key value } $args {
+      switch -exact $key {
+        switch -- [winfo class $w] {
+          Text   {append options " -tag $value -under -16"}
+          Canvas {append options " -ctag $value -under -16"}
+        }
+      }
+    }
+    # most poSoft tips should be shown under a host widget,
+    # but some under the mouse pointer (poShowLogo etc.)
+    foreach underpointer {poShowLogo} {
+      if {[string first $underpointer $w]>-1} {
+        append options " -under -16"
+        break
+      }
+    }
+    ::baltip tip $w $msg {*}$options
+  }
+}
 # apl)
 
 # Initialize photo image related packages. Use special packages first,
