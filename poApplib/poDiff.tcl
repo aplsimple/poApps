@@ -4854,4 +4854,5 @@ namespace eval poDiff {
 }
 
 poDiff Init
+after 1000 {after 1000 poDiff::TimeDiffDir}
 catch {poLog Debug "Loaded Package poApplib (Module [info script])"}
