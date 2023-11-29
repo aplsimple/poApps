@@ -4854,5 +4854,12 @@ namespace eval poDiff {
 }
 
 poDiff Init
-after 1000 {after 1000 poDiff::TimeDiffDir}
+
+# (apl
+namespace eval poDiff {
+  set sPo(appWindowClosed) no
+}
+after 500 {after 500 poDiff::TimeDiffDir}
+# apl)
+
 catch {poLog Debug "Loaded Package poApplib (Module [info script])"}
