@@ -1,5 +1,5 @@
 # Module:         poConsole
-# Copyright:      Paul Obermeier 2001-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2001-2023 / paul@poSoft.de
 # First Version:  2001 / 07 / 06
 #
 # Distributed under BSD license.

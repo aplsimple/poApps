@@ -1,5 +1,5 @@
 # Module:         poTree
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 03 / 14
 #
 # Distributed under BSD license.
@@ -278,10 +278,6 @@ namespace eval poTree {
         variable pkgInt
 
         foreach volume [lsort -dictionary [GetVolumeList]] {
-            if { $volume eq "A:/" } {
-                # Don't try to read the diskette drive when initializing the window.
-                continue
-            }
             set newNode [$tree insert {} end -text $volume \
                          -values [list $volume "directory"] -tags $volume]
             PopulateTree $tree $newNode
@@ -526,7 +522,7 @@ namespace eval poTree {
         pack $tw.fr.okfr.b1 $tw.fr.okfr.b2 -side left -fill x -expand 1
 
         wm title $tw $title
-        $tw config -cursor top_left_arrow
+        $tw config -cursor arrow
 
         set oldFocus [focus]
         set oldGrab [grab current $tw]

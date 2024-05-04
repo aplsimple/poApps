@@ -1,5 +1,5 @@
 # Module:         poUkazUtil
-# Copyright:      Paul Obermeier 2017-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2017-2023 / paul@poSoft.de
 # First Version:  2017 / 03 /12 
 #
 # Distributed under BSD license.

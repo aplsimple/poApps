@@ -1,5 +1,5 @@
 # Module:         poPhotoUtil
-# Copyright:      Paul Obermeier 2009-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2009-2023 / paul@poSoft.de
 # First Version:  2009 / 09 / 13
 #
 # Distributed under BSD license.
@@ -50,6 +50,7 @@ namespace eval poPhotoUtil {
     namespace export DrawHistogram
     namespace export CountColors
     namespace export MarkColors
+    namespace export SetTransparentColor
     namespace export AssignPalette
 
     proc CopyImg { img } {
@@ -131,7 +132,7 @@ namespace eval poPhotoUtil {
         }
     }
 
-    proc Resize { phImg newx newy } {
+    proc _Resize { phImg newx newy } {
         # Scale an image to new size (newx, newy) and return
         # the resized image as a new photo image.
 
@@ -266,6 +267,161 @@ namespace eval poPhotoUtil {
             incr ny
         }
         return $dest
+    }
+
+    proc _ResizeAlpha { phImg newx newy { dest "" } } {
+        # Scale an image to new size (newx, newy) and return
+        # the resized image as a new photo image, if "dest" is
+        # the empty string. Otherwise "dest" must be a valid 
+        # photo image, where the resize image will be written to.
+
+        set mx [image width  $phImg]
+        set my [image height $phImg]
+
+        if { $dest eq "" } {
+            set dest [image create photo -width $newx -height $newy]
+        } else {
+            $dest configure -width $newx -height $newy
+        }
+
+        # Check if we can just zoom using -zoom option on copy
+        if { $newx % $mx == 0 && $newy % $my == 0} {
+            set ix [expr {$newx / $mx}]
+            set iy [expr {$newy / $my}]
+            $dest copy $phImg -zoom $ix $iy
+            return $dest
+        }
+
+        set ny 0
+        set ytot $my
+        for {set y 0} {$y < $my} {incr y} {
+            # Do horizontal resize
+            foreach {pr pg pb pa} [$phImg get 0 $y -withalpha] {break}
+
+            set row [list]
+            set thisrow [list]
+            set nx 0
+            set xtot $mx
+            for {set x 1} {$x < $mx} {incr x} {
+                # Add whole pixels as necessary
+                while { $xtot <= $newx } {
+                    lappend row [format "#%02x%02x%02x%02x" $pr $pg $pb $pa]
+                    lappend thisrow $pr $pg $pb $pa
+                    incr xtot $mx
+                    incr nx
+                }
+
+                # Now add mixed pixels
+                foreach {r g b a} [$phImg get $x $y -withalpha] {break}
+
+                # Calculate ratios to use
+                set xtot [expr {$xtot - $newx}]
+                set rn $xtot
+                set rp [expr {$mx - $xtot}]
+
+                # This section covers shrinking an image where
+                # more than 1 source pixel may be required to
+                # define the destination pixel
+                set xr 0
+                set xg 0
+                set xb 0
+                set xa 0
+                while { $xtot > $newx } {
+                    incr xr $r
+                    incr xg $g
+                    incr xb $b
+                    incr xa $a
+                    set xtot [expr {$xtot - $newx}]
+                    incr x
+                    foreach {r g b a} [$phImg get $x $y -withalpha] {break}
+                }
+
+                # Work out the new pixel colours
+                set tr [expr {int( ($rn*$r + $xr + $rp*$pr) / $mx)}]
+                set tg [expr {int( ($rn*$g + $xg + $rp*$pg) / $mx)}]
+                set tb [expr {int( ($rn*$b + $xb + $rp*$pb) / $mx)}]
+                set ta [expr {int( ($rn*$a + $xa + $rp*$pa) / $mx)}]
+
+                if {$tr > 255} {set tr 255}
+                if {$tg > 255} {set tg 255}
+                if {$tb > 255} {set tb 255}
+                if {$ta > 255} {set ta 255}
+
+                # Output the pixel
+                lappend row [format "#%02x%02x%02x%02x" $tr $tg $tb $ta]
+                lappend thisrow $tr $tg $tb $ta
+                incr xtot $mx
+                incr nx
+
+                set pr $r
+                set pg $g
+                set pb $b
+                set pa $a
+            }
+
+            # Finish off pixels on this row
+            while { $nx < $newx } {
+                lappend row [format "#%02x%02x%02x%02x" $r $g $b $a]
+                lappend thisrow $r $g $b $a
+                incr nx
+            }
+
+            # Do vertical resize
+            if {[info exists prevrow]} {
+                set nrow [list]
+                # Add whole lines as necessary
+                while { $ytot <= $newy } {
+                    $dest put [list $prow] -to 0 $ny 
+                    incr ytot $my
+                    incr ny
+                }
+
+                # Now add mixed line
+                # Calculate ratios to use
+                set ytot [expr {$ytot - $newy}]
+                set rn $ytot
+                set rp [expr {$my - $rn}]
+
+                # This section covers shrinking an image
+                # where a single pixel is made from more than
+                # 2 others.  Actually we cheat and just remove
+                # a line of pixels which is not as good as it should be
+                while { $ytot > $newy } {
+                    set ytot [expr {$ytot - $newy}]
+                    incr y
+                    continue
+                }
+
+                # Calculate new row
+                foreach {pr pg pb pa} $prevrow {r g b a} $thisrow {
+                    set tr [expr {int( ($rn*$r + $rp*$pr) / $my)}]
+                    set tg [expr {int( ($rn*$g + $rp*$pg) / $my)}]
+                    set tb [expr {int( ($rn*$b + $rp*$pb) / $my)}]
+                    set ta [expr {int( ($rn*$a + $rp*$pa) / $my)}]
+                    lappend nrow [format "#%02x%02x%02x%02x" $tr $tg $tb $ta]
+                }
+
+                $dest put [list $nrow] -to 0 $ny
+                incr ytot $my
+                incr ny
+            }
+
+            set prevrow $thisrow
+            set prow $row
+        }
+
+        # Finish off last rows
+        while { $ny < $newy } {
+            $dest put [list $row] -to 0 $ny
+            incr ny
+        }
+        return $dest
+    }
+
+    if { [package vsatisfies [package version Tk] "8.7-"] } {
+        rename _ResizeAlpha Resize
+    } else {
+        rename _Resize Resize
     }
 
     proc Blur { phImg coef } {
@@ -740,7 +896,7 @@ namespace eval poPhotoUtil {
     }
 
     proc GetImgStatsLabels { { level 0 } } {
-        set infoLabels [list "Width" "Height" "Pixels"]
+        set infoLabels [list "Width" "Height" "Pixels" "Pages"]
 
         if { $level >= 1 } {
             lappend infoLabels "Minimum"
@@ -795,7 +951,7 @@ namespace eval poPhotoUtil {
         dict set histoDict "height" $h
 
         if { $description eq "" } {
-            dict set histoDict "description" $img
+            dict set histoDict "description" $phImg
         } else {
             dict set histoDict "description" $description
         }
@@ -925,6 +1081,21 @@ namespace eval poPhotoUtil {
             }
         }
         return $dest
+    }
+
+    proc SetTransparentColor { phImg { red 255 } { green 255 } { blue 255 } } { 
+        set colorStr [format "#%02x%02x%02x" $red $green $blue]
+        set y 0
+        foreach row [$phImg data] {
+            set x 0
+            foreach pixel $row {
+                if { $colorStr eq $pixel } { 
+                    $phImg transparency set $x $y 1
+                }
+                incr x
+            }
+            incr y
+        }
     }
 
     proc AssignPalette { phImg channelNum paletteList { inverseMap false } } {

@@ -1,5 +1,5 @@
 # Module:         poPresMgr
-# Copyright:      Paul Obermeier 2014-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2014-2023 / paul@poSoft.de
 # First Version:  2014 / 02 / 26
 #
 # Distributed under BSD license.
@@ -13,7 +13,8 @@ namespace eval poPresMgr {
     namespace ensemble create
 
     namespace export Init LoadSettings SaveSettings
-    namespace export ShowMainWin ParseCommandLine IsOpen
+    namespace export ShowMainWin CloseAppWindow
+    namespace export ParseCommandLine IsOpen
     namespace export GetUsageMsg
 
     # The following variables must be set, before reading parameters and
@@ -33,7 +34,7 @@ namespace eval poPresMgr {
         # Determine machine dependent fixed font.
         set sPo(fixedFont) [poWin GetFixedFont]
 
-        if { ! [poApps HavePkg "cawt"] } {
+        if { ! [poMisc HavePkg "cawt"] } {
             set sPo(CawtState) "disabled"
         } else {
             set sPo(CawtState) "normal"
@@ -600,7 +601,7 @@ namespace eval poPresMgr {
             poMenu AddCommand $fileMenu "Quit" "Ctrl+Q" ${ns}::ExitApp
         }
 
-        if { [poApps HavePkg "cawt"] } {
+        if { [poMisc HavePkg "cawt"] } {
             bind $sPo(tw) <Control-n>  ${ns}::NewBlankPpt
             bind $sPo(tw) <Control-t>  ${ns}::OpenTmplPpt
             bind $sPo(tw) <Control-o>  ${ns}::AskOpenPpt
@@ -713,7 +714,7 @@ namespace eval poPresMgr {
         set sPo(StatusWidget) [poWin CreateStatusWidget $sPo(tw).fr.statfr true]
 
         UpdateMainTitle
-        WriteInfoStr $sPo(initStr)
+        WriteInfoStr $sPo(initStr) $sPo(initType)
 
         CreateTablelistFrame $sPo(cacheDir)
         CreateSlideFrame
@@ -766,7 +767,7 @@ namespace eval poPresMgr {
     proc GetCurApp {} {
         variable sPo
 
-        if { ! [::Cawt::IsValidId $sPo(CurApp)] } {
+        if { ! [::Cawt::IsComObject $sPo(CurApp)] } {
             SetCurApp ""
         }
         return $sPo(CurApp)
@@ -781,7 +782,7 @@ namespace eval poPresMgr {
     proc GetCurPres {} {
         variable sPo
 
-        if { ! [::Cawt::IsValidId $sPo(CurPres)] } {
+        if { ! [::Cawt::IsComObject $sPo(CurPres)] } {
             SetCurPres ""
         }
         return $sPo(CurPres)
@@ -1022,7 +1023,7 @@ namespace eval poPresMgr {
             }
         }
 
-        $sPo(tw) configure -cursor top_left_arrow
+        $sPo(tw) configure -cursor arrow
 
         if { $orphanedPpt } {
             poWin SetScrolledTitle $sPo(slideFrame) [format \
@@ -1188,7 +1189,7 @@ namespace eval poPresMgr {
             set f [GetSelSourceFile $ind]
             set errMsg [ExportPpt $f $sPo(imgExportType) $sPo(dropMaster)]
             if { $errMsg eq "" } {
-                $listBox rowconfigure $ind -background green
+                $listBox rowconfigure $ind -background lightgreen
             } else {
                 $listBox rowconfigure $ind -background red
                 set retVal [tk_messageBox \
@@ -1242,12 +1243,12 @@ namespace eval poPresMgr {
         set countGreens 0
         set numEntries [$listBox index end]
         for { set i 0 } { $i < $numEntries } { incr i } {
-            if { [$listBox rowcget $i -background] eq "green" } {
+            if { [$listBox rowcget $i -background] eq "lightgreen" } {
                 incr countGreens
             }
         }
         poWin SetScrolledTitle $listBox "Presentations (Total: $numEntries Cached: $countGreens)"
-        $sPo(tw) configure -cursor top_left_arrow
+        $sPo(tw) configure -cursor arrow
     }
 
     proc GetTemplateFileName {} {
@@ -1274,8 +1275,12 @@ namespace eval poPresMgr {
         variable sPo
 
         $cb configure -values $typeList
-        $cb current $showInd
-        set sPo(curSession) [$cb get]
+        if { [llength $typeList] > 0 } {
+            $cb current $showInd
+            set sPo(curSession) [$cb get]
+        } else {
+            NewSession "Empty"
+        }
     }
 
     proc ComboCB {} {
@@ -1303,9 +1308,13 @@ namespace eval poPresMgr {
             incr sessionId
             set sessionName "Session$sessionId"
         }
-        set retVal [poWin EntryBox $sessionName $x $y 20]
-        if { $retVal ne "" } {
-            NewSession $retVal
+        lassign [poWin EntryBox $sessionName $x $y 20] retVal retName
+        if { ! $retVal } {
+            # User pressed Escape.
+            return
+        }
+        if { $retName ne "" } {
+            NewSession $retName
         }
     }
 
@@ -1368,9 +1377,13 @@ namespace eval poPresMgr {
 
         set x [winfo pointerx $winId]
         set y [winfo pointery $winId]
-        set retVal [poWin EntryBox $sessionName $x $y 20]
-        if { $retVal ne "" } {
-            RenameSession $sessionName $retVal
+        lassign [poWin EntryBox $sessionName $x $y 20] retVal retName
+        if { ! $retVal } {
+            # User pressed Escape.
+            return
+        }
+        if { $retName ne "" } {
+            RenameSession $sessionName $retName
         }
     }
 
@@ -1644,7 +1657,8 @@ namespace eval poPresMgr {
                            "Video FPS:" \
                            "Enable effects:" \
                            "Effect duration (sec):" \
-                           "Effect advance time (sec):"] {
+                           "Effect advance time (sec):" \
+                           "Effect type:"] {
             ttk::label $tw.l$row -text $labelStr
             grid  $tw.l$row -row $row -column 0 -sticky nw -pady 2
             incr row
@@ -1790,7 +1804,7 @@ namespace eval poPresMgr {
         ttk::combobox $sPo(combo) -state readonly
 
         if { [llength $sPo(sessionList)] == 0 } {
-            NewSession "Session1"
+            NewSession "Empty"
         }
 
         set curInd [lsearch $sPo(sessionList) $sPo(curSession)]
@@ -1949,7 +1963,7 @@ namespace eval poPresMgr {
                 }
             }
 
-            if { $sPo(UseEffects) } {
+            if { $sPo(UseEffects) && [info exists slideId] } {
                 Ppt SetSlideShowTransition $slideId \
                     -duration $sPo(EffectDuration) \
                     -advancetime $sPo(EffectAdvanceTime) \
@@ -1971,7 +1985,7 @@ namespace eval poPresMgr {
             $infoProc "No images selected in Image Browser." "Error"
             return
         }
-        if { [GetCurPres] eq "" } {
+        if { ! [Ppt IsValidPresId [GetCurPres]] } {
             $infoProc "No presentation specified for appending. Create or open a presentation first." "Error"
             return
         }
@@ -2017,7 +2031,7 @@ namespace eval poPresMgr {
             set pptFile [file dirname $slidePath] 
             set pptFile [file join $sPo(sourceDir) [AbsToRel $pptFile $sPo(cacheDir)]]
 
-            if { [GetCurPres] eq "" } {
+            if { ! [Ppt IsValidPresId [GetCurPres]] } {
                 tk_messageBox -message \
                     "No presentation specified for appending. \n\
                      Create or open a presentation first." \
@@ -2067,7 +2081,7 @@ namespace eval poPresMgr {
 
     proc OpenPptCacheDir { listBox } {
         set cacheDir [GetSelCacheDir]
-        if { $cacheDir ne "" } {
+        if { [file isdirectory $cacheDir] } {
             poExtProg StartFileBrowser $cacheDir
         } else {
             WriteInfoStr "No presentation selected or not yet cached." "Error"
@@ -2124,7 +2138,7 @@ namespace eval poPresMgr {
     proc AskSavePpt { { useLastDir true } } {
         variable sPo
      
-        if { [GetCurPres] eq "" } {
+        if { ! [Ppt IsValidPresId [GetCurPres]] } {
             tk_messageBox -message \
                 "No presentation specified for saving.\n\
                  Create or open a presentation first." \
@@ -2151,7 +2165,7 @@ namespace eval poPresMgr {
 
         incr sPo(NumVideoCompletionCalls)
         poWin UpdateStatusProgress $sPo(StatusWidget) $sPo(NumVideoCompletionCalls)
-        if { [GetCurPres] eq "" } {
+        if { ! [Ppt IsValidPresId [GetCurPres]] } {
             WriteInfoStr "Video creation of $sPo(VideoFile) failed." "Error"
         }
         set status [Ppt GetCreateVideoStatus [GetCurPres]]
@@ -2170,7 +2184,7 @@ namespace eval poPresMgr {
     proc AskSaveVideo { { useLastDir true } } {
         variable sPo
      
-        if { [GetCurPres] eq "" } {
+        if { ! [Ppt IsValidPresId [GetCurPres]] } {
             tk_messageBox -message \
                 "No presentation specified for saving as video.\n\
                  Create or open a presentation first." \
@@ -2252,14 +2266,16 @@ namespace eval poPresMgr {
         SetTablelistPos "Top"
 
         set sPo(sessionList) [list]
-        SetCurSession "" [pwd] [poMisc GetTmpDir] "" 1
+        SetCurSession "" "" [poMisc GetTmpDir] "" 1
 
         set cfgFile [file normalize [poCfgFile GetCfgFilename $sPo(appName) $cfgDir]]
         if { [poMisc IsReadableFile $cfgFile] } {
             set sPo(initStr) "Settings loaded from file $cfgFile"
+            set sPo(initType) "Ok"
             source $cfgFile
         } else {
-            set sPo(initStr) "No settings file found. Using default values."
+            set sPo(initStr) "No settings file \"$cfgFile\" found. Using default values."
+            set sPo(initType) "Warning"
             set sPo(firstTime) true
         }
         set sPo(cfgDir) $cfgDir
@@ -2342,15 +2358,16 @@ namespace eval poPresMgr {
             append msg "Video options:\n"
             append msg "--pptfile <string>  : Save presentation as PowerPoint file.\n"
             append msg "--videofile <string>: Save presentation as video file.\n"
-            append msg "                      Valid file extensions: .mp4 .wmv\n"
+            append msg "                      Valid file extensions: \".mp4\" \".wmv\"\n"
             append msg "--embed <bool>      : Embed images into presentation. Default: $sPo(EmbedImages).\n"
             append msg "--fit <bool>        : Fit images to slide size. Default: $sPo(FitToSlide).\n"
             append msg "--resolution <int>  : Vertical resolution of video. Default: $sPo(VideoResolution).\n"
             append msg "--fps <int>         : Frames per seconds of video. Default: $sPo(VideoFps).\n"
             append msg "--useeffects <bool> : Enable or disable slide effects. Default: $sPo(UseEffects).\n"
-            append msg "--duration <float>  : Specify the duration of each slide in seconds. Default: $sPo(EffectDuration).\n"
-            append msg "--advance <float>   : Specify the advance time of each slide in seconds. Default: $sPo(EffectAdvanceTime).\n"
-            append msg "--effect <string>   : Specify the slide change effect. Default: $sPo(EffectType).\n"
+            append msg "--duration <float>  : Duration of each slide in seconds. Default: $sPo(EffectDuration).\n"
+            append msg "--advance <float>   : Advance time of each slide in seconds. Default: $sPo(EffectAdvanceTime).\n"
+            append msg "--effect <string>   : Slide change effect. Default: $sPo(EffectType).\n"
+            append msg "                      See http://www.cawt.tcl3d.org/download/CawtReference-Ppt-Enum.html#::Ppt::Enum::PpEntryEffect\n"
         }
         append msg "\n"
         append msg "Available sessions:\n"
@@ -2391,6 +2408,10 @@ namespace eval poPresMgr {
     proc CloseAppWindow {} {
         variable sPo
 
+        if { ! [info exists sPo(tw)] || ! [winfo exists $sPo(tw)] } {
+            return
+        }
+
         if { [poApps GetAutosaveOnExit] } {
             SaveSettings
         }
@@ -2406,7 +2427,6 @@ namespace eval poPresMgr {
     }
 
     proc ExitApp {} {
-        CloseAppWindow
         poApps ExitApp
     }
 
@@ -2521,7 +2541,7 @@ namespace eval poPresMgr {
                 Ppt Close [GetCurPres]
                 Ppt Quit [GetCurApp]
                 Cawt Destroy
-                ExitApp
+                exit 0
             }
         }
     }

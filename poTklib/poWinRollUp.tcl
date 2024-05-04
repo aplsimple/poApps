@@ -1,5 +1,5 @@
 # Module:         poWinRollUp
-# Copyright:      Paul Obermeier 2015-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2015-2023 / paul@poSoft.de
 # First Version:  2015 / 05 / 29
 #
 # Distributed under BSD license.
@@ -25,10 +25,20 @@ namespace eval poWinRollUp {
 
         set sPo(curRollUpId) 0
 
-        set sPo(closedBitmap) [poBmpData rollupclosed]
-        set sPo(openedBitmap) [poBmpData rollupopened]
-        set sPo(toplevelOn)   [poBmpData slideShowMarked]
-        set sPo(toplevelOff)  [poBmpData slideShowAll]
+        set sPo(closedBmp)      rollupclosed
+        set sPo(openedBmp)      rollupopened
+        set sPo(toplevelOnBmp)  slideShowMarked
+        set sPo(toplevelOffBmp) slideShowAll
+    }
+
+    proc GetBmp { type } {
+        variable sPo
+
+        set bmpType $sPo($type)
+        if { ! [info exists sPo($bmpType)] } {
+            set sPo($bmpType) [poBmpData $bmpType]
+        }
+        return $sPo($bmpType)
     }
 
     proc _GenWidgetName { rollUpWidget row { col 0 } } {
@@ -65,7 +75,7 @@ namespace eval poWinRollUp {
             set sPo($contentWidget,x) $x
             set sPo($contentWidget,y) $y
             wm forget $contentWidget
-            $stickyWidget configure -image $sPo(toplevelOn)
+            $stickyWidget configure -image [GetBmp toplevelOnBmp]
             if { $sPo(isOpen,$contentWidget) } {
                 _SwitchGridRow $contentWidget $contentRow true
             } else {
@@ -82,7 +92,7 @@ namespace eval poWinRollUp {
             wm title $contentWidget [$buttonWidget cget -text]
             wm geometry $contentWidget [format "+%d+%d" $sPo($contentWidget,x) $sPo($contentWidget,y)]
             wm protocol $contentWidget WM_DELETE_WINDOW "${ns}::_ToggleToplevel $rollUpWidget $buttonRow $contentRow"
-            $stickyWidget configure -image $sPo(toplevelOff)
+            $stickyWidget configure -image [GetBmp toplevelOffBmp]
             if { ! $sPo(isOpen,$contentWidget) } {
                 event generate $contentWidget <<RollUpOpened>>
             }
@@ -100,10 +110,10 @@ namespace eval poWinRollUp {
 
         if { $sPo(isOpen,$contentWidget) } {
             _SwitchGridRow $contentWidget $contentRow false
-            $buttonWidget configure -image $sPo(closedBitmap)
+            $buttonWidget configure -image [GetBmp closedBmp]
         } else {
             _SwitchGridRow $contentWidget $contentRow true
-            $buttonWidget configure -image $sPo(openedBitmap)
+            $buttonWidget configure -image [GetBmp openedBmp]
         }
         set sPo(isOpen,$contentWidget) [expr ! $sPo(isOpen,$contentWidget)]
 
@@ -213,11 +223,11 @@ namespace eval poWinRollUp {
 
         set stickyWidget [_GenWidgetName $rollUpWidget $buttonRow 0]
         button $stickyWidget -relief flat -bg $sPo($rollUpWidget,bg) -anchor w \
-                  -image $sPo(toplevelOn) \
+                  -image [GetBmp toplevelOnBmp] \
                   -command "${ns}::_ToggleToplevel $rollUpWidget $buttonRow $contentRow"
         set buttonWidget [_GenWidgetName $rollUpWidget $buttonRow 1]
         button $buttonWidget -text $title -relief flat -bg $sPo($rollUpWidget,bg) -anchor w \
-                  -image $sPo(openedBitmap) -compound left \
+                  -image [GetBmp openedBmp] -compound left \
                   -command "${ns}::_ToggleRollUp $rollUpWidget $buttonRow true"
         grid $stickyWidget -row $buttonRow -column 0 -sticky news
         grid $buttonWidget -row $buttonRow -column 1 -sticky news

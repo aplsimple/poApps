@@ -1,5 +1,5 @@
 # Module:         poWinPreview
-# Copyright:      Paul Obermeier 2014-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2014-2023 / paul@poSoft.de
 # First Version:  2014 / 10 / 26
 #
 # Distributed under BSD license.
@@ -58,12 +58,12 @@ namespace eval poWinPreview {
         poExtProg SetTitle $sett($w,previewTxt) $title
     }
 
-    proc Update { w fileName } {
+    proc Update { w fileName { forceUpdate false } } {
         variable sett
 
-        set fileName [file normalize $fileName]
+        set fileName [file normalize [poMisc QuoteTilde $fileName]]
         # If the preview information of fileName is already displayed, return immediately.
-        if { [info exists sett($w,previewFile)] && $sett($w,previewFile) eq $fileName } {
+        if { [info exists sett($w,previewFile)] && $sett($w,previewFile) eq $fileName && ! $forceUpdate } {
             return
         }
 
@@ -80,16 +80,18 @@ namespace eval poWinPreview {
             if { $sh <= 0 } {
                 set sh 1
             }
-            set phImg [poImgMisc LoadImgScaled $fileName $sw $sh]
+            set imgDict [poImgMisc LoadImgScaled $fileName $sw $sh]
+            set phImg [dict get $imgDict phImg]
             if { $phImg ne "" } {
                 $sett($w,previewTxt) image create 1.0 -image $phImg -align center
+                set sett($w,phImg) $phImg
             } else {
-                poExtProg DumpFileIntoTextWidget $sett($w,previewTxt) $fileName false [GetMaxBytes]
+                poExtProg DumpFileIntoTextWidget $sett($w,previewTxt) $fileName -maxbytes [GetMaxBytes]
             }
         } elseif { [poType IsBinary $fileName] } {
-            poExtProg DumpFileIntoTextWidget $sett($w,previewTxt) $fileName false [GetMaxBytes]
+            poExtProg DumpFileIntoTextWidget $sett($w,previewTxt) $fileName -maxbytes [GetMaxBytes]
         } else {
-            set catchVal [catch { poExtProg LoadFileIntoTextWidget $sett($w,previewTxt) $fileName [GetMaxBytes] }]
+            set catchVal [catch { poExtProg LoadFileIntoTextWidget $sett($w,previewTxt) $fileName -maxbytes [GetMaxBytes] }]
             if { $catchVal } {
                 $sett($w,previewTxt) insert end [lindex [split "$::errorInfo" "\n"] 0]
             }
@@ -106,6 +108,10 @@ namespace eval poWinPreview {
         $sett($w,previewTxt) configure -state normal
         $sett($w,previewTxt) delete 1.0 end
         $sett($w,previewTxt) configure -state disabled
+        if { [info exists sett($w,phImg)] } {
+            image delete $sett($w,phImg)
+            unset sett($w,phImg)
+        }
         catch { unset sett($w,previewFile) }
     }
 }

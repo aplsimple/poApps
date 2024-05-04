@@ -1,5 +1,5 @@
 # Module:         poImgBrowse
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 10 / 22
 #
 # Distributed under BSD license.
@@ -14,7 +14,8 @@ namespace eval poImgBrowse {
     namespace export Init
     namespace export OpenWin OkWin CancelWin
     namespace export LoadSettings SaveSettings
-    namespace export ShowMainWin ParseCommandLine IsOpen
+    namespace export ShowMainWin CloseAppWindow
+    namespace export ParseCommandLine IsOpen
     namespace export GetUsageMsg SetVerbose
     namespace export GetThumbSize
     namespace export GetSelectedFiles
@@ -86,6 +87,18 @@ namespace eval poImgBrowse {
         return $sPo(thumbSize)
     }
 
+    proc SetUpdateInterval { interval } {
+        variable sPo
+
+        set sPo(updateInterval) $interval
+    }
+
+    proc GetUpdateInterval {} {
+        variable sPo
+
+        return [list $sPo(updateInterval)]
+    }
+
     proc SetViewOptions { showThumb showFileInfo } {
         variable sPo
 
@@ -142,28 +155,36 @@ namespace eval poImgBrowse {
 
         SetStopBrowsing
 
-        set pkgInt(infoWinList) {}
+        set sPo(KeyRepeatTime) 600      ; # ms
+
+        set pkgInt(infoWinList) [list]
         set pkgInt(settWin) .poImgBrowse_SettWin
 
         set pkgInt(colNameList)  [list "Index" "Image" "Filename" "Type" \
-                                       "Size (KB)" "Date" "Width" "Height" "X-DPI" "Y-DPI"]
-        set pkgInt(colWidthList) [list 5 6 20 5 8 15 7 7 6 6]
+                                       "Size" "Date" "Width" "Height" \
+                                       "X-DPI" "Y-DPI" "Pages"]
+        set pkgInt(colWidthList) [list 5 6 20 6 \
+                                       8 15 7 7 \
+                                       6 6 6]
         set pkgInt(colAlignList) [list right center left left \
-                                       right left right right right right]
+                                       right left right right \
+                                       right right right]
         set pkgInt(colSortList) [list integer ascii dictionary ascii \
-                                      real dictionary integer integer integer integer]
+                                      integer dictionary integer integer \
+                                      integer integer integer]
         set pkgInt(numColumns)  [llength $pkgInt(colNameList)]
 
-        set pkgCol(Ind)    0
-        set pkgCol(Img)    1
-        set pkgCol(Name)   2
-        set pkgCol(Type)   3
-        set pkgCol(Size)   4
-        set pkgCol(Date)   5
-        set pkgCol(Width)  6
-        set pkgCol(Height) 7
-        set pkgCol(X-DPI)  8
-        set pkgCol(Y-DPI)  9
+        set pkgCol(Ind)     0
+        set pkgCol(Img)     1
+        set pkgCol(Name)    2
+        set pkgCol(Type)    3
+        set pkgCol(Size)    4
+        set pkgCol(Date)    5
+        set pkgCol(Width)   6
+        set pkgCol(Height)  7
+        set pkgCol(X-DPI)   8
+        set pkgCol(Y-DPI)   9
+        set pkgCol(Pages)  10 
 
         set pkgInt(maxThumbSize) 100
         set pkgInt(selMode) "none"
@@ -174,6 +195,7 @@ namespace eval poImgBrowse {
             SaveOpts        "Save options: " \
             ViewOpts        "View options: " \
             ThumbSize       "Thumbnail size (Pixel): " \
+            UpdateInterval  "Update interval (Image): " \
             SaveThumb       "Generate thumbnails" \
             HiddenThumbDir  "Hidden thumbnail directory" \
             ShowThumb       "Show thumbnail" \
@@ -255,6 +277,7 @@ namespace eval poImgBrowse {
         set row 0
         foreach labelStr [list \
                            [Str ThumbSize] \
+                           [Str UpdateInterval] \
                            [Str SaveOpts] \
                            [Str ViewOpts] ] {
             ttk::label $tw.l$row -text $labelStr
@@ -273,6 +296,16 @@ namespace eval poImgBrowse {
         poWin CreateCheckedIntEntry $tw.fr$row ${ns}::sPo(thumbSize) -row $row -width 3 -min 10
 
         set tmpList [list [list sPo(thumbSize)] [list $sPo(thumbSize)]]
+        lappend varList $tmpList
+
+        # Row 1: Thumbnail size option
+        incr row
+        ttk::frame $tw.fr$row
+        grid $tw.fr$row -row $row -column 1 -sticky new
+
+        poWin CreateCheckedIntEntry $tw.fr$row ${ns}::sPo(updateInterval) -row $row -width 3 -min 1 -max 50
+
+        set tmpList [list [list sPo(updateInterval)] [list $sPo(updateInterval)]]
         lappend varList $tmpList
 
         # Row 2: Save options
@@ -305,7 +338,7 @@ namespace eval poImgBrowse {
         ttk::checkbutton $tw.fr$row.cb2 -text [Str ShowFileInfo] \
                     -variable ${ns}::sPo(showFileInfo) \
                     -onvalue 1 -offvalue 0
-        poToolhelp AddBinding $tw.fr$row.cb2 "Columns: Type, Size, Date, Width, Height, X-DPI, Y-DPI"
+        poToolhelp AddBinding $tw.fr$row.cb2 "Columns: Type, Size, Date, Width, Height, X-DPI, Y-DPI, Pages"
         pack $tw.fr$row.cb1 $tw.fr$row.cb2 -side top -anchor w -in $tw.fr$row
 
         set tmpList [list [list sPo(showThumb)] [list $sPo(showThumb)]]
@@ -319,16 +352,17 @@ namespace eval poImgBrowse {
     proc ReadThumbFile { thumbFile } {
         variable sPo
 
-        set retVal [catch {image create photo -file $thumbFile} photoName]
+        set retVal [catch {image create photo -file $thumbFile} phImg]
         if { $retVal != 0 } {
-            WriteInfoStr "Can't read thumbnail $thumbFile ($photoName)" "Warning"
             return ""
         } else {
-            if { $sPo(thumbSize) != [image width $photoName] || \
-                 $sPo(thumbSize) != [image height $photoName] } {
-                WriteInfoStr "Stored thumbnails do not fit current settings. Update thumbnails." "Warning"
+            if { $sPo(thumbSize) != [image width $phImg] || \
+                 $sPo(thumbSize) != [image height $phImg] } {
+                WriteInfoStr "Stored thumbnails do not fit current settings. Delete and update thumbnails." "Error"
+                SetStopBrowsing
+                return ""
             }
-            return $photoName
+            return $phImg
         }
     }
 
@@ -362,6 +396,12 @@ namespace eval poImgBrowse {
         return $imgFileList
     }
 
+    proc GetFullPath { tbl row col dirName } {
+        set fileName [$tbl cellcget $row,$col -text]
+        set fileName [poMisc QuoteTilde $fileName]
+        return [file join $dirName $fileName]
+    }
+
     proc GetSelRows { tbl } {
         return [$tbl curselection]
     }
@@ -374,7 +414,7 @@ namespace eval poImgBrowse {
         set dirName [GetSelImgDir]
 
         foreach row [lsort -integer $rowList] {
-            set fileName [file join $dirName [$tbl cellcget $row,$pkgCol(Name) -text]]
+            set fileName [GetFullPath $tbl $row $pkgCol(Name) $dirName]
             lappend fileList $fileName
         }
         return $fileList
@@ -418,15 +458,15 @@ namespace eval poImgBrowse {
 
             $w add separator
             $w add command -label "Slide show" -command "${ns}::SlideShowFile $tbl"
-            if { [poPresMgr IsOpen] && $tcl_platform(platform) eq "windows" } {
+            if { $tcl_platform(platform) eq "windows" } {
                 $w add command -label "Append to PowerPoint" -command "${ns}::AppendToPpt $tbl"
             }
 
             $w add separator
-            $w add command -label "Open" -command "${ns}::LoadImgs $selFunc $fileList"
+            $w add command -label "Open file" -command "${ns}::LoadImgs $selFunc $fileList"
             if { [llength $fileList] == 1 } {
                 $w add separator
-                $w add command -label "Rename ..." -command "${ns}::AskRenameFile $tbl"
+                $w add command -label "Rename file ..." -command "${ns}::AskRenameFile $tbl"
             } elseif { [llength $fileList] == 2 } {
                 $w add separator
                 $w add command -label "Diff ..." -command "${ns}::DiffFiles $tbl"
@@ -434,21 +474,21 @@ namespace eval poImgBrowse {
 
             set shownDirName [poAppearance CutFilePath $sPo(lastDir)]
             $w add separator
-            $w add command -label "Copy to ..." -underline 0 \
+            $w add command -label "Copy file to ..." -underline 0 \
                        -command "${ns}::AskCopyOrMoveTo $tbl copy"
             if { [file isdirectory $sPo(lastDir)] } {
-                $w add command -label "Copy to ${shownDirName}/" -underline 0 \
+                $w add command -label "Copy file to ${shownDirName}/" -underline 0 \
                        -command "${ns}::AskCopyOrMoveTo $tbl copy $sPo(lastDir)"
             }
-            $w add command -label "Move to ..." -underline 0 \
+            $w add command -label "Move file to ..." -underline 0 \
                        -command "${ns}::AskCopyOrMoveTo $tbl move"
             if { [file isdirectory $sPo(lastDir)] } {
-                $w add command -label "Move to ${shownDirName}/" -underline 0 \
+                $w add command -label "Move file to ${shownDirName}/" -underline 0 \
                        -command "${ns}::AskCopyOrMoveTo $tbl move $sPo(lastDir)"
             }
 
             $w add separator
-            $w add command -label "Delete ..." -activebackground "#FC3030" \
+            $w add command -label "Delete file ..." -activebackground "#FC3030" \
                        -command "${ns}::AskDelFile $tbl"
         }
         tk_popup $w [expr {$x +5}] [expr {$y +5}]
@@ -468,7 +508,7 @@ namespace eval poImgBrowse {
 
         foreach w $pkgInt(infoWinList) {
             if { [winfo exists $w] } {
-                destroy $w
+                poWinInfo DeleteInfoWin $w
             }
         }
         unset pkgInt(infoWinList)
@@ -478,6 +518,10 @@ namespace eval poImgBrowse {
     proc CloseAppWindow {} {
         variable sPo
         variable pkgInt
+
+        if { ! [info exists sPo(tw)] || ! [winfo exists $sPo(tw)] } {
+            return
+        }
 
         SetStopBrowsing
         if { [info exists sPo(imgLoadId)] } {
@@ -502,7 +546,6 @@ namespace eval poImgBrowse {
     }
 
     proc ExitApp {} {
-        CloseAppWindow
         poApps ExitApp
     }
 
@@ -611,26 +654,27 @@ namespace eval poImgBrowse {
             return
         }
         for { set row 0 } { $row < $numRows } { incr row } {
-            set imgName   [$tbl cellcget $row,$pkgCol(Name) -text]
-            set imgFile   [file join $dirName $imgName]
+            set imgName [$tbl cellcget $row,$pkgCol(Name) -text]
+            set imgName [poMisc QuoteTilde $imgName]
+            set imgFile [file join $dirName $imgName]
             set thumbFile [BuildThumbFileName $thumbDir $imgName]
             set thumbExists [expr [file exists $thumbFile]]
             set msgStr "Image: $imgName Thumb: "
             set pkgInt(progressTodo) [expr {$numRows - $row}]
             set pkgInt(progressName) $imgName
             if { ! $thumbExists } {
-                set photoName [poImgMisc LoadImgScaled $imgFile \
-                               $sPo(thumbSize) $sPo(thumbSize)]
-                if { $photoName ne "" } {
+                set imgDict [poImgMisc LoadImgScaled $imgFile $sPo(thumbSize) $sPo(thumbSize)]
+                set phImg [dict get $imgDict phImg]
+                if { $phImg ne "" } {
                     if { $sPo(showThumb) } {
-                        $pkgInt(progressLabel) configure -image $photoName
+                        $pkgInt(progressLabel) configure -image $phImg
                         update
                     }
-                    set retVal [catch {$photoName write $thumbFile -format PNG}]
+                    set retVal [catch {$phImg write $thumbFile -format PNG}]
                     if { $retVal != 0 } {
                         append msgStr "NOT generated"
                     }
-                    image delete $photoName
+                    image delete $phImg
                 } else {
                     append msgStr "NOT generated"
                 }
@@ -678,50 +722,54 @@ namespace eval poImgBrowse {
                 return
             }
             set imgName [$tbl cellcget $row,$pkgCol(Name) -text]
+            set imgName [poMisc QuoteTilde $imgName]
             set imgFile [file join $dirName $imgName]
             if { ! [info exists pkgInt($imgFile,photo)] } {
                 if { [poImgMisc IsImageFile $imgFile] } {
                     set thumbFile [BuildThumbFileName $thumbDir $imgName]
-                    set thumbExists [expr [file exists $thumbFile]]
+                    set thumbExists [expr {[file exists $thumbFile]}]
 
                     if { $thumbExists } {
-                        set imgInfo [ReadThumbFile $thumbFile]
+                        set phImg [ReadThumbFile $thumbFile]
                     } else {
-                        set imgInfo [poImgMisc LoadImgScaled $imgFile \
+                        set imgDict [poImgMisc LoadImgScaled $imgFile \
                                                $sPo(thumbSize) $sPo(thumbSize)]
+                        set phImg [dict get $imgDict phImg]
                     }
 
                     if { $sPo(saveThumb) } {
                         if { ! $thumbExists } {
-                            set retVal [catch {$imgInfo write $thumbFile -format PNG}]
+                            set retVal [catch {$phImg write $thumbFile -format PNG}]
                             if { $retVal != 0 } {
                                 WriteInfoStr "Cannot write thumb file $thumbFile" "Error"
                             }
                         }
                     }
                 } else {
-                    set imgInfo ""
+                    set phImg ""
                 }
                 set imgReplaced true
-                set pkgInt($imgFile,photo) $imgInfo
+                set pkgInt($imgFile,photo) $phImg
             }
 
             if { [$tbl cellcget $row,$pkgCol(Img) -image] eq $pkgInt(placeholderImg) } {
-                set photoName $pkgInt($imgFile,photo)
-                if { $photoName ne "" } {
-                    $tbl cellconfigure $row,$pkgCol(Img) -image $photoName
+                set phImg $pkgInt($imgFile,photo)
+                if { $phImg ne "" } {
+                    $tbl cellconfigure $row,$pkgCol(Img) -image $phImg
                 } else {
-                    $tbl cellconfigure $row,$pkgCol(Img) -text $photoName
+                    $tbl cellconfigure $row,$pkgCol(Img) -image $pkgInt(errorImg)
                 }
             }
             set row [expr { ($row + 1) % [$tbl size] }]
             if { $imgReplaced } {
-                poWin UpdateStatusProgress $sPo(StatusWidget) $count
-                break
+                if { $row <= $row2 || $count % $sPo(updateInterval) == 0 } {
+                    poWin UpdateStatusProgress $sPo(StatusWidget) $count
+                    break
+                }
             }
             incr count
             if { $count == [$tbl size] } {
-                set t [poWatch Lookup _poImgScanSwatch]
+                set t [poWatch Lookup _poImgBrowseSwatch]
                 set msg [format "Loaded %d files: %.2f sec (%.1f msec/img)" \
                         $count $t [expr 1000.0*$t/$count]]
                 WriteInfoStr $msg
@@ -748,6 +796,8 @@ namespace eval poImgBrowse {
         }
         WriteInfoStr "Loading thumbnail images ..." "Watch"
         poWin InitStatusProgress $sPo(StatusWidget) [$tbl size]
+        poWatch Reset _poImgBrowseSwatch
+        poWatch Start _poImgBrowseSwatch
         LoadThumbnails $tbl
     }
 
@@ -774,20 +824,11 @@ namespace eval poImgBrowse {
         update
 
         foreach row $rowList {
-            set imgName  [$tbl cellcget $row,$pkgCol(Name) -text]
-            set fileName [file join $dirName $imgName]
-
-            # Copy the selected thumbnail image for display in the info window.
-            # Thumbnail images are available only for table entries visible.
-            set phImg ""
-            if { [$tbl cellcget $row,$pkgCol(Img) -image] ne $pkgInt(placeholderImg) } {
-                set phImg [image create photo]
-                $phImg copy [$tbl cellcget $row,$pkgCol(Img) -image]
-            }
-            set infoWin [poWin CreateOneFileInfoWin "$fileName" $phImg ]
+            set fileName [GetFullPath $tbl $row $pkgCol(Name) $dirName]
+            set infoWin [poWinInfo CreateInfoWin $fileName -tab "Preview"]
             lappend pkgInt(infoWinList) $infoWin
         }
-        $sPo(tw) configure -cursor top_left_arrow
+        $sPo(tw) configure -cursor arrow
     }
 
     proc RowsSelected { tbl } {
@@ -819,9 +860,8 @@ namespace eval poImgBrowse {
             set sPo(lastDir) $dstDir
 
             foreach row $rowList {
-                set imgName [$tbl cellcget $row,$pkgCol(Name) -text]
-                set srcName [file join $dirName $imgName]
-                set dstName [file join $dstDir  $imgName]
+                set srcName [GetFullPath $tbl $row $pkgCol(Name) $dirName]
+                set dstName [GetFullPath $tbl $row $pkgCol(Name) $dstDir]
                 if { [file exists $dstName] } {
                     set retVal [tk_messageBox \
                       -title "Confirmation" \
@@ -872,11 +912,9 @@ namespace eval poImgBrowse {
         }
 
         set row1 [lindex $rowList 0]
-        set imgName [$tbl cellcget $row1,$pkgCol(Name) -text]
-        set leftFile [file join $dirName $imgName]
+        set leftFile [GetFullPath $tbl $row1 $pkgCol(Name) $dirName]
         set row2 [lindex $rowList 1]
-        set imgName [$tbl cellcget $row2,$pkgCol(Name) -text]
-        set rightFile [file join $dirName $imgName]
+        set rightFile [GetFullPath $tbl $row2 $pkgCol(Name) $dirName]
 
         poApps StartApp poImgdiff [list $leftFile $rightFile]
     }
@@ -904,15 +942,20 @@ namespace eval poImgBrowse {
 
         set row [lindex $rowList 0]
         set imgName [$tbl cellcget $row,$pkgCol(Name) -text]
+        set imgName [poMisc QuoteTilde $imgName]
         set srcName [file join $dirName $imgName]
 
-        set retName [poWin EntryBox $imgName $pkgInt(mouse,x) $pkgInt(mouse,y)]
-
+        lassign [poWin EntryBox $imgName $pkgInt(mouse,x) $pkgInt(mouse,y)] retVal retName
+        if { ! $retVal } {
+            # User pressed Escape.
+            return
+        }
         if { $retName eq "" } {
-            WriteInfoStr "No file name specified or empty file name. No renaming." "Cancel"
+            WriteInfoStr "No file name specified. No renaming." "Error"
             return
         }
 
+        set retName [poMisc QuoteTilde $retName]
         set newName [file join $dirName $retName]
         if { [file exists $newName] } {
             set retVal [tk_messageBox -icon question -type yesno -default yes \
@@ -959,13 +1002,19 @@ namespace eval poImgBrowse {
             WriteInfoStr "No directory or more than 1 selected." "Error"
             return
         }
-        set retName [poWin EntryBox [file tail $dirName] $x $y]
+
+        lassign [poWin EntryBox [file tail $dirName] $x $y] retVal retName
+        if { ! $retVal } {
+            # User pressed Escape.
+            return
+        }
 
         if { $retName eq "" } {
             WriteInfoStr "Empty directory name. Can not rename." "Error"
             return
         }
 
+        set retName [poMisc QuoteTilde $retName]
         set newName [file join [file dirname $dirName] $retName]
         if { [file isdirectory $newName] } {
             WriteInfoStr "Directory $newName already exists. No overwrite possible." "Error"
@@ -1022,12 +1071,18 @@ namespace eval poImgBrowse {
             WriteInfoStr "No directory or more than 1 selected." "Error"
             return
         }
-        set retName [poWin EntryBox "New directory" $x $y]
 
+        lassign [poWin EntryBox "New directory" $x $y] retVal retName
+        if { ! $retVal } {
+            # User pressed Escape.
+            return
+        }
         if { $retName eq "" } {
             WriteInfoStr "Empty directory name. Can not create." "Error"
             return
         }
+
+        set retName [poMisc QuoteTilde $retName]
         set newName [file join $dirName $retName]
         if { [file isdirectory $newName] } {
             WriteInfoStr "Directory $newName exists. No creation possible." "Error"
@@ -1110,8 +1165,7 @@ namespace eval poImgBrowse {
 
         set delError 0
         foreach row $rowList {
-            set imgName [$tbl cellcget $row,$pkgCol(Name) -text]
-            set srcName [file join $dirName $imgName]
+            set srcName [GetFullPath $tbl $row $pkgCol(Name) $dirName]
             WriteInfoStr "Deleting file $srcName" "Watch"
             update
             set catchVal [catch { file delete -force -- $srcName } errorInfo]
@@ -1125,9 +1179,9 @@ namespace eval poImgBrowse {
         $tbl see $row
 
         if { $delError } {
-            WriteInfoStr "Error trying to delete file $imgName" "Error"
+            WriteInfoStr "Error trying to delete file $srcName" "Error"
         } elseif { $numSel == 1 } {
-            WriteInfoStr "Deleted file $imgName" "Ok"
+            WriteInfoStr "Deleted file $srcName" "Ok"
         } else {
             WriteInfoStr "Deleted $numSel files" "Ok"
         }
@@ -1177,10 +1231,13 @@ namespace eval poImgBrowse {
         global tcl_platform
         variable ns
 
-        if { [poPresMgr IsOpen] && $tcl_platform(platform) eq "windows" } {
+        if { $tcl_platform(platform) eq "windows" } {
+            if { ! [Ppt IsValidPresId [poPresMgr::GetCurPres]] } {
+                poPresMgr::NewBlankPpt
+            }
             poPresMgr::AppendSelImages ${ns}::WriteInfoStr
         } else {
-            WriteInfoStr "No PowerPoint presentation available." "Error"
+            WriteInfoStr "Functionality available only on Windows." "Error"
         }
     }
 
@@ -1212,7 +1269,7 @@ namespace eval poImgBrowse {
         }
         set selRowList [GetSelRows $tbl]
         foreach row $rowList {
-            set fileName [file join $dirName [$tbl cellcget $row,$pkgCol(Name) -text]]
+            set fileName [GetFullPath $tbl $row $pkgCol(Name) $dirName]
             lappend fileList $fileName
             if { [lsearch -exact -integer $selRowList $row] >= 0 } {
                 lappend markList $fileName
@@ -1238,7 +1295,7 @@ namespace eval poImgBrowse {
 
         set fileList [list]
         foreach row $rowList {
-            set fileName [file join $dirName [$tableId cellcget $row,$pkgCol(Name) -text]]
+            set fileName [GetFullPath $tableId $row $pkgCol(Name) $dirName]
             lappend fileList $fileName
         }
         return $fileList
@@ -1301,6 +1358,23 @@ namespace eval poImgBrowse {
         return 1
     }
 
+    proc CreatePlaceholderImage { width height type } {
+        set phImg [image create photo -width $width -height $height]
+        if { $type eq "blank" } {
+            $phImg blank
+        } else {
+            set scanline [lrepeat $width "#A00000"]
+            lset scanline [expr { $width/2 + 0 }] "#FFFF00"
+            lset scanline [expr { $width/2 + 1 }] "#FFFF00"
+            set data [list]
+            lappend data $scanline
+            for { set y 0 } { $y < $height } { incr y } {
+                $phImg put $data -to 0 $y
+            }
+        }
+        return $phImg
+    }
+
     proc ShowFileList { { force true } } {
         variable pkgInt
         variable sPo
@@ -1327,7 +1401,7 @@ namespace eval poImgBrowse {
         poWin InitStatusProgress $sPo(StatusWidget) [llength $imgFileList]
 
         if { [llength $imgFileList] == 0 } {
-            $sPo(tw) configure -cursor top_left_arrow
+            $sPo(tw) configure -cursor arrow
             WriteInfoStr "Scanning finished. No files match filter in directory [file tail $dirName]." "Ok"
             return
         }
@@ -1343,8 +1417,11 @@ namespace eval poImgBrowse {
         if { [info exists pkgInt(placeholderImg)] } {
             image delete $pkgInt(placeholderImg)
         }
-        set pkgInt(placeholderImg) [image create photo -width  $sPo(thumbSize) \
-                                                       -height $sPo(thumbSize)]
+        if { [info exists pkgInt(errorImg)] } {
+            image delete $pkgInt(errorImg)
+        }
+        set pkgInt(placeholderImg) [CreatePlaceholderImage $sPo(thumbSize) $sPo(thumbSize) "blank"]
+        set pkgInt(errorImg)       [CreatePlaceholderImage $sPo(thumbSize) $sPo(thumbSize) "error"]
 
         # Create a default list of row values.
         set defList [list]
@@ -1358,6 +1435,7 @@ namespace eval poImgBrowse {
 
         set row 0
         SetStopBrowsing false
+        poWatch Reset _poImgScanSwatch
         poWatch Start _poImgScanSwatch
         foreach imgFile $imgFileList {
             if { [StopBrowsing] } {
@@ -1367,10 +1445,22 @@ namespace eval poImgBrowse {
             set rowList $defList
 
             lset rowList $pkgCol(Name) $imgFile
+            set imgFile [poMisc QuoteTilde $imgFile]
             set pathName [file join $dirName $imgFile]
             if { $sPo(showFileInfo) } {
+                lset rowList $pkgCol(Pages) [poImgPages GetNumPages $pathName]
                 set foundImg false
-                if { [poMisc HaveTcl87OrNewer] } {
+                if { [poType IsPdf $pathName] } {
+                    lassign [poImgPdf GetPageSize $pathName] w h
+                    set dpi [poImgPdf GetPdfDpiOpt]
+                    lset rowList $pkgCol(Type)   "pdf"
+                    lset rowList $pkgCol(Width)  $w
+                    lset rowList $pkgCol(Height) $h
+                    lset rowList $pkgCol(X-DPI)  $dpi
+                    lset rowList $pkgCol(Y-DPI)  $dpi
+                    set foundImg true
+                }
+                if { ! $foundImg && [poImgMisc HaveImageMetadata] } {
                     set metaDict [image metadata -file $pathName]
                     if { [dict exists $metaDict "format"] } {
                         set foundImg true
@@ -1385,7 +1475,7 @@ namespace eval poImgBrowse {
                         }
                     }
                 }
-                if { $foundImg == false } {
+                if { ! $foundImg } {
                     set retVal [catch {poType GetFileType $pathName} typeDict]
                     if { $retVal == 0 } {
                         set fmt "Unknown"
@@ -1407,7 +1497,7 @@ namespace eval poImgBrowse {
                 set date [clock format [file mtime $pathName] \
                                -format "%Y-%m-%d %H:%M"]
                 set size [file size $pathName]
-                lset rowList $pkgCol(Size) [format "%.1f" [expr {$size / 1024.0}]]
+                lset rowList $pkgCol(Size) $size
                 lset rowList $pkgCol(Date) $date
             }
             if { [winfo exists $tbl] } {
@@ -1440,12 +1530,13 @@ namespace eval poImgBrowse {
         }
         poWin UpdateStatusProgress $sPo(StatusWidget) 0
         if { [winfo exists $sPo(tw)] } {
-            $sPo(tw) configure -cursor top_left_arrow
+            $sPo(tw) configure -cursor arrow
         }
 
         if { $sPo(showThumb) && [winfo exists $tbl] } {
             poWin InitStatusProgress $sPo(StatusWidget) [$tbl size]
             WriteInfoStr "Loading thumbnail images ..." "Watch"
+            poWatch Reset _poImgBrowseSwatch
             poWatch Start _poImgBrowseSwatch
             LoadThumbnails $tbl
             poWin UpdateStatusProgress $sPo(StatusWidget) 0
@@ -1524,7 +1615,7 @@ namespace eval poImgBrowse {
 
         bind $w <Escape> "destroy $w"
         bind $w <Return> "destroy $w"
-        $sPo(tw) configure -cursor top_left_arrow
+        $sPo(tw) configure -cursor arrow
         focus $w
     }
 
@@ -1632,6 +1723,100 @@ namespace eval poImgBrowse {
         $tableId columnconfigure $pkgCol(Date)   -hide [expr !$sPo(showFileInfo)]
         $tableId columnconfigure $pkgCol(Width)  -hide [expr !$sPo(showFileInfo)]
         $tableId columnconfigure $pkgCol(Height) -hide [expr !$sPo(showFileInfo)]
+        $tableId columnconfigure $pkgCol(X-DPI)  -hide [expr !$sPo(showFileInfo)]
+        $tableId columnconfigure $pkgCol(Y-DPI)  -hide [expr !$sPo(showFileInfo)]
+        $tableId columnconfigure $pkgCol(Pages)  -hide [expr !$sPo(showFileInfo)]
+    }
+
+    proc CopyImg { tableId { fmtName "CF_DIB" }  } {
+        variable sPo
+
+        if { [RowsSelected $tableId] } {
+            set fileList [GetSelFiles $tableId]
+            set fileName [lindex $fileList 0]
+            set retVal [catch { poImgMisc LoadImg $fileName } imgDict]
+            if { $retVal == 0 } {
+                set phImg [dict get $imgDict phImg]
+                set retVal [catch { poWinCapture Img2Clipboard $phImg $fmtName } errMsg]
+                if { $retVal == 0 } {
+                    WriteInfoStr "Copied image to clipboard in format $fmtName" "OK"
+                } else {
+                    WriteInfoStr "$errMsg" "Error"
+                }
+            } else {
+                WriteInfoStr "$imgDict" "Error"
+            }
+        } else {
+            WriteInfoStr "No images selected" "Error"
+        }
+    }
+
+    proc CopyPathList { tableId } {
+        if { [RowsSelected $tableId] } {
+            set fileList [GetSelFiles $tableId]
+            set retVal [catch { poWinCapture WritePathList $fileList } errMsg]
+            if { $retVal == 0 } {
+                WriteInfoStr "Copied path list to clipboard" "OK"
+            } else {
+                WriteInfoStr "$errMsg" "Error"
+            }
+        } else {
+            WriteInfoStr "No images selected" "Error"
+        }
+    }
+
+    proc AddClipboardFormats { menuId tableId } {
+        variable ns
+
+        poMenu DeleteMenuEntries $menuId 0
+        if { [RowsSelected $tableId] } {
+            foreach fmtName [poWinCapture GetSupportedFormatNames "copy"] {
+                poMenu AddCommand $menuId $fmtName "" [list ${ns}::CopyImg $tableId $fmtName]
+            }
+            poMenu AddCommand $menuId "Path List" "" [list ${ns}::CopyPathList $tableId]
+        }
+    }
+
+    proc ShowFileByKey { tableId key } {
+        variable sPo
+        variable pkgCol
+
+        set key [string tolower $key]
+        if { ! [info exists sPo(KeyPressTime)] } {
+            # First call of this procedure.
+            set sPo(KeyPressTime) [clock milliseconds]
+            set sPo(SearchString) $key
+        } else {
+            set curTime [clock milliseconds]
+            if { $curTime - $sPo(KeyPressTime) < $sPo(KeyRepeatTime) && \
+                 $key ne [string index $sPo(SearchString) end] } {
+                append sPo(SearchString) $key
+            } else {
+                set sPo(SearchString) $key
+            }
+            set sPo(KeyPressTime) $curTime
+        }
+
+        set numRows [$tableId size]
+        set indList [$tableId curselection]
+        if { [llength $indList] == 0 } {
+            set row 0
+        } else {
+            set row [expr { ( [lindex $indList 0] + 1 ) % $numRows }]
+        }
+        for { set i 0 } { $i < $numRows } { incr i } {
+            set fileName [$tableId cellcget $row,$pkgCol(Name) -text]
+            if { ( [string first $sPo(SearchString) [string tolower $fileName 0]] == 0 ) || \
+                 ( $sPo(CurFileName) ne "" && $key eq "return" && $fileName eq $sPo(CurFileName) ) } {
+                $tableId selection clear 0 end
+                $tableId selection set $row $row
+                event generate $tableId <<TablelistSelect>>
+                $tableId activate $row
+                $tableId see $row
+                break
+            }
+            set row [expr {( $row + 1 ) % $numRows }]
+        }
     }
 
     proc OpenDir { dirName { selFunc ::poImgBrowse::StartAppImgview } } {
@@ -1736,6 +1921,7 @@ namespace eval poImgBrowse {
         bind $bodyTag <KeyRelease-Next>  "${ns}::ShowSelection $tableId Up"
         bind $bodyTag <KeyRelease-Home>  "${ns}::ShowSelection $tableId Home"
         bind $bodyTag <KeyRelease-End>   "${ns}::ShowSelection $tableId End"
+        bind $bodyTag <Any-KeyPress>     "${ns}::ShowFileByKey $tableId %K"
 
         set pkgInt(tableId) $tableId
 
@@ -1796,18 +1982,27 @@ namespace eval poImgBrowse {
         wm protocol $sPo(tw) WM_DELETE_WINDOW ${ns}::CloseAppWindow
 
         # Menu Edit
-        set thumbMenu $editMenu.thumb
         menu $editMenu -tearoff 0
 
-        poMenu AddCommand $editMenu "Delete"      "Del" "${ns}::AskDelFile $tableId"
-        poMenu AddCommand $editMenu "Rename"      "F2"  "${ns}::AskRenameFile $tableId"
-        poMenu AddCommand $editMenu "Copy to ..." ""    "${ns}::AskCopyOrMoveTo $tableId copy"
-        poMenu AddCommand $editMenu "Move to ..." ""    "${ns}::AskCopyOrMoveTo $tableId move"
+        if { $::tcl_platform(platform) eq "windows" } {
+            set copyMenu $editMenu.copy
+            $editMenu add cascade -label "Copy as" -menu $copyMenu
+            menu $copyMenu -tearoff 0 -postcommand "${ns}::AddClipboardFormats $copyMenu $tableId"
+
+            $editMenu add separator
+        }
+
+        poMenu AddCommand $editMenu "Copy file to ..." ""    "${ns}::AskCopyOrMoveTo $tableId copy"
+        poMenu AddCommand $editMenu "Move file to ..." ""    "${ns}::AskCopyOrMoveTo $tableId move"
+
+        poMenu AddCommand $editMenu "Delete file"      "Del" "${ns}::AskDelFile $tableId"
+        poMenu AddCommand $editMenu "Rename file"      "F2"  "${ns}::AskRenameFile $tableId"
 
         bind $sPo(tw) <Delete>    "${ns}::AskDelFile $tableId"
         bind $sPo(tw) <F2>        "${ns}::AskRenameFile $tableId"
 
         $editMenu add separator
+        set thumbMenu $editMenu.thumb
         $editMenu add cascade -label "Thumbnails" -menu $thumbMenu
 
         menu $thumbMenu -tearoff 0
@@ -1971,12 +2166,14 @@ namespace eval poImgBrowse {
                     $sPo(mainWin,w) $sPo(mainWin,h) \
                     $sPo(mainWin,x) $sPo(mainWin,y)]
         update
-        $sPo(paneVert) pane $sPo(paneVert).dirfr -weight 1
-        $sPo(paneVert) pane $sPo(paneVert).icofr -weight 0
-        $sPo(paneVert) sashpos 0 $sPo(sashY)
-        $sPo(paneHori) sashpos 0 $sPo(sashX)
+        if { [winfo exists $sPo(paneVert)] } {
+            $sPo(paneVert) pane $sPo(paneVert).dirfr -weight 1
+            $sPo(paneVert) pane $sPo(paneVert).icofr -weight 0
+            $sPo(paneVert) sashpos 0 $sPo(sashY)
+            $sPo(paneHori) sashpos 0 $sPo(sashX)
 
-        poWin Raise $sPo(tw)
+            poWin Raise $sPo(tw)
+        }
     }
 
     proc ShowMainWin { { dirName "" } { selFunc ::poImgBrowse::StartAppImgview } } {
@@ -1994,7 +2191,7 @@ namespace eval poImgBrowse {
             return
         }
         set dirName [GetSelImgDir]
-        set fileName [file join $dirName [$tbl cellcget $row,$pkgCol(Name) -text]]
+        set fileName [GetFullPath $tbl $row $pkgCol(Name) $dirName]
 
         poWinPreview Update $pkgInt(previewWidget) $fileName
 
@@ -2002,9 +2199,14 @@ namespace eval poImgBrowse {
     }
 
     proc PrintSelInfo { tbl } {
+        variable sPo
+        variable pkgCol
+
         set rowList [$tbl curselection]
         if { [llength $rowList] > 0 } {
-            PrintInfo $tbl [lindex $rowList 0]
+            set row [lindex $rowList 0]
+            PrintInfo $tbl $row
+            set sPo(CurFileName) [$tbl cellcget $row,$pkgCol(Name) -text]
         }
     }
 
@@ -2077,6 +2279,7 @@ namespace eval poImgBrowse {
         SetMainWindowSash    220 260
 
         SetThumbOptions      60 0 1
+        SetUpdateInterval    5
         SetViewOptions       1 1
         SetFilterOptions     "*" $pkgInt(allImgs)
         SetLastUsedDir       [pwd]
@@ -2084,9 +2287,11 @@ namespace eval poImgBrowse {
         set cfgFile [file normalize [poCfgFile GetCfgFilename $sPo(appName) $cfgDir]]
         if { [poMisc IsReadableFile $cfgFile] } {
             set sPo(initStr) "Settings loaded from file $cfgFile"
+            set sPo(initType) "Ok"
             source $cfgFile
         } else {
-            set sPo(initStr) "No settings file found. Using default values."
+            set sPo(initStr) "No settings file \"$cfgFile\" found. Using default values."
+            set sPo(initType) "Warning"
         }
         set sPo(cfgDir) $cfgDir
     }
@@ -2120,6 +2325,7 @@ namespace eval poImgBrowse {
 
             PrintCmd $fp "LastUsedDir"
             PrintCmd $fp "ThumbOptions"
+            PrintCmd $fp "UpdateInterval"
             PrintCmd $fp "ViewOptions"
             PrintCmd $fp "FilterOptions"
 

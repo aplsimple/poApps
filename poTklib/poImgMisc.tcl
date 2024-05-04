@@ -1,5 +1,5 @@
 # Module:         poImgMisc
-# Copyright:      Paul Obermeier 2013-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2013-2023 / paul@poSoft.de
 # First Version:  2013 / 07 / 31
 #
 # Distributed under BSD license.
@@ -11,12 +11,26 @@ namespace eval poImgMisc {
 
     namespace ensemble create
 
+    namespace export HaveImageMetadata
     namespace export IsPhoto
     namespace export IsImageFile
     namespace export LoadImg LoadImgScaled
     namespace export CreateThumbImg
     namespace export CreateLabelImg
     namespace export ReadBmp WriteBmp
+
+    proc _Init {} {
+        variable sHaveImageMetadata
+
+        set catchVal [catch { image metadata -data "1234" }]
+        set sHaveImageMetadata [expr ! $catchVal]
+    }
+
+    proc HaveImageMetadata {} {
+        variable sHaveImageMetadata
+
+        return $sHaveImageMetadata
+    }
 
     # Check, if identifier "img" is a valid Tk photo image.
     proc IsPhoto { img } {
@@ -27,23 +41,9 @@ namespace eval poImgMisc {
     }
 
     proc IsImageFile { fileName { imgFmt "" } } {
-        if { [poMisc HaveTcl87OrNewer] } {
-            set metaDict [image metadata -file $fileName]
-            if { ! [dict exists $metaDict "format"] } {
-                return false
-            }
-            set fmt [dict get $metaDict "format"]
-            if { $fmt ne "" && $imgFmt eq "" } {
-                return true
-            }
-            if { [string equal -nocase $fmt $imgFmt] } {
-                return true
-            } else {
-                return false
-            }
-        } else {
-            return [poType IsImage $fileName $imgFmt]
-        }
+        return [expr { [poType IsImage $fileName $imgFmt] || \
+                       [poType IsPdf $fileName] || \
+                       [lsearch -exact [poImgType GetExtList] [file extension $fileName]] >= 0 }]
     }
 
     proc LoadImg { imgName { optionStr "" } } {
@@ -67,33 +67,141 @@ namespace eval poImgMisc {
             set optStr $optionStr
         }
 
-        # TODO What to do with animated GIF's??
-        if { $fmtStr eq "GIF" } {
-            if { [poImgDetail CheckAniGifIndex $imgName 1] } {
-                # We suceeded in reading an image from the AniGif file.
-                poLog Debug "This seems to be an animated GIF"
+        # Try to read an image from file.
+        # 1. If format is "PDF", use the tkMuPDF extension, if available.
+        # 2. If format is "FITS", use the fitsTcl extension, if available.
+        # 3. Try to read it with standard Tk image procs or by using the
+        #    Img extension.
+        # 4. If this did not succeed, try using the poImg extension, if it exists.
+        if { $fmtStr eq "PDF" && [poMisc HavePkg "tkMuPDF"] } {
+            set phImg [poImgPdf PhotoFromPdf $imgName {*}$optStr]
+        } elseif { $fmtStr eq "FITS" && [poMisc HavePkg "fitstcl"] } {
+            set retVal [catch {set phImg [poImgFits PhotoFromFits $imgName {*}$optStr]} err1]
+            if { $retVal != 0 } {
+                error "Cannot read image \"$imgName\""
+            }
+        } else {
+            set retVal [catch {set phImg [image create photo -file $imgName \
+                                          -format [list [string tolower $fmtStr] {*}$optStr]]} err1]
+            if { $retVal != 0 } {
+                # Case (3)
+                if { [poImgAppearance UsePoImg] } {
+                    set retVal [catch {set poImg [poImage NewImageFromFile $imgName]} err2]
+                    if { $retVal != 0 } {
+                        poLog Error "Cannot read image $imgName ($err1 $err2)"
+                        error "Cannot read image \"$imgName\""
+                    } else {
+                        set phImg [image create photo]
+                        # Check stored channels in poImage.
+                        $poImg GetImgFormat fmtList
+                        set minVal 0
+                        set maxVal 255
+                        set chanMap [list $::RED $::GREEN $::BLUE]
+                        if { [lindex $fmtList $::RED]   || \
+                             [lindex $fmtList $::GREEN] || \
+                             [lindex $fmtList $::BLUE] } {
+                             if { [lindex $fmtList $::MATTE] } {
+                                set chanMap [list $::RED $::GREEN $::BLUE $::MATTE]
+                            } else {
+                                set chanMap [list $::RED $::GREEN $::BLUE]
+                            }
+                        } elseif { [lindex $fmtList $::MATTE] && \
+                                   [lindex $fmtList $::BRIGHTNESS] } {
+                            set chanMap [list $::BRIGHTNESS $::BRIGHTNESS $::BRIGHTNESS $::MATTE]
+                        } elseif { [lindex $fmtList $::BRIGHTNESS] } {
+                            set chanMap [list $::BRIGHTNESS $::BRIGHTNESS $::BRIGHTNESS]
+                        } elseif { [lindex $fmtList $::DEPTH] } {
+                            # Note: The following reverse order of minVal and maxVal is
+                            # correct, as depth values are stored as reciprocal values.
+                            $poImg GetDepthRange maxVal minVal
+                            set minVal [expr 1.0 / $minVal]
+                            set maxVal [expr 1.0 / $maxVal]
+                            set chanMap [list $::DEPTH $::DEPTH $::DEPTH]
+                        } elseif { [lindex $fmtList $::TEMPERATURE] } {
+                            $poImg GetTemperatureRange minVal maxVal
+                            set chanMap [list $::TEMPERATURE $::TEMPERATURE $::TEMPERATURE]
+                        } elseif { [lindex $fmtList $::RADIANCE] } {
+                            $poImg GetRadianceRange minVal maxVal
+                            set chanMap [list $::RADIANCE $::RADIANCE $::RADIANCE]
+                        } elseif { [lindex $fmtList $::MATTE] } {
+                            set chanMap [list $::MATTE $::MATTE $::MATTE]
+                        }
+                        $poImg AsPhoto $phImg $chanMap 1.0 $minVal $maxVal
+                    }
+                } else {
+                    poLog Error "Cannot read image $imgName ($err1)"
+                    error "Cannot read image \"$imgName\""
+                }
             }
         }
+        dict set imgDict phImg $phImg
+        dict set imgDict poImg $poImg
 
+        set totalTime [poWatch Lookup _poImgMiscSwatch]
+        poLog Info [format "%.2f sec: LoadImg %s" $totalTime $imgName]
+
+        return $imgDict
+    }
+
+    proc LoadImgScaled { imgName newWidth newHeight args } {
+        poWatch Start _poImgMiscSwatch
+
+        dict set imgDict phImg  ""
+        dict set imgDict width  0
+        dict set imgDict height 0
+
+        set ext [file extension $imgName]
+        set fmtStr [poImgType GetFmtByExt $ext]
+        if { $fmtStr eq "" } {
+            poLog Warning "Extension \"$ext\" not in image type list."
+            set fmtCmd ""
+        } else {
+            set optStr [poImgType GetOptByFmt $fmtStr "read"]
+            set add ""
+            if { [llength $args] > 0 } {
+                set add [split $args]
+            }
+            set fmtCmd [format "-format \"%s %s %s\"" [string tolower $fmtStr] $optStr $add]
+        }
         # Try to read an image from file.
-        # 1. Try to read it with standard Tk image procs or by using the
-        #    Img extension.
-        # 2. If this did not succeed, try using the poImg extension, if it exists.
-        set retVal [catch {set phImg [image create photo -file $imgName \
-                                      -format "[string tolower $fmtStr] $optStr"]} err1]
-        if { $retVal != 0 } {
-            # Case (2)
-            if { [poImgAppearance UsePoImg] } {
-                set retVal [catch {set poImg [poImage NewImageFromFile $imgName]} err2]
+        # 1. If format is "PDF", use the tkMuPDF extension, if available.
+        # 2. If format is "FITS", use the fitsTcl extension, if available.
+        # 3. Try to read it with standard Tk image procs or by using the Img extension.
+        # 4. If this did not succeed, try using the poImg extension, if it exists.
+
+        if { $fmtStr eq "PDF" && [poMisc HavePkg "tkMuPDF"] } {
+            lassign [poImgPdf GetPageSize $imgName {*}$args] w h
+            set xzoom [expr {($w / $newWidth)  + 1}]
+            set yzoom [expr {($h / $newHeight) + 1}]
+            set zoomFact [poMisc Max $xzoom $yzoom]
+
+            set phThumb [poImgPdf PhotoFromPdf $imgName {*}$args -width [expr {$w / $zoomFact}] -height [expr {$h / $zoomFact}]]
+        } else {
+            set poImg ""
+            if { $fmtStr eq "FITS" && [poMisc HavePkg "fitstcl"] } {
+                set optStr [poImgType GetOptByFmt $fmtStr "read"]
+                set retVal [catch {set phImg [poImgFits PhotoFromFits $imgName {*}$optStr]} err1]
+            } else {
+                set retVal [catch {set phImg [image create photo -file $imgName {*}$fmtCmd]} err1]
+            }
+            if { $retVal != 0 } {
+                # Case (3)
+                set retVal [catch {poImageMode GetFileInfo $imgName w h} err2]
                 if { $retVal != 0 } {
-                    poLog Error "Can't read image $imgName ($err1 $err2)"
-                    error "Can't read image \"$imgName\""
+                    poLog Warning "Cannot read image $imgName ($err1 $err2)"
+                    return $imgDict
                 } else {
-                    set phImg [image create photo]
+                    set xzoom [expr {($w / $newWidth)  + 1}]
+                    set yzoom [expr {($h / $newHeight) + 1}]
+                    set zoomFact [poMisc Max $xzoom $yzoom]
+
+                    set poImg [poImage NewImage [expr {$w / $zoomFact}] \
+                                                [expr {$h / $zoomFact}]]
+                    $poImg ReadImage $imgName true
+
+                    set phThumb [image create photo]
                     # Check stored channels in poImage.
                     $poImg GetImgFormat fmtList
-                    set minVal 0
-                    set maxVal 255
                     set chanMap [list $::RED $::GREEN $::BLUE]
                     if { [lindex $fmtList $::RED]   || \
                          [lindex $fmtList $::GREEN] || \
@@ -109,114 +217,32 @@ namespace eval poImgMisc {
                     } elseif { [lindex $fmtList $::BRIGHTNESS] } {
                         set chanMap [list $::BRIGHTNESS $::BRIGHTNESS $::BRIGHTNESS]
                     } elseif { [lindex $fmtList $::DEPTH] } {
-                        # Note: The following reverse order of minVal and maxVal is
-                        # correct, as depth values are stored as reciprocal values.
-                        $poImg GetDepthRange maxVal minVal
-                        set minVal [expr 1.0 / $minVal]
-                        set maxVal [expr 1.0 / $maxVal]
                         set chanMap [list $::DEPTH $::DEPTH $::DEPTH]
-                    } elseif { [lindex $fmtList $::TEMPERATURE] } {
-                        $poImg GetTemperatureRange minVal maxVal
-                        set chanMap [list $::TEMPERATURE $::TEMPERATURE $::TEMPERATURE]
-                    } elseif { [lindex $fmtList $::RADIANCE] } {
-                        $poImg GetRadianceRange minVal maxVal
-                        set chanMap [list $::RADIANCE $::RADIANCE $::RADIANCE]
                     } elseif { [lindex $fmtList $::MATTE] } {
                         set chanMap [list $::MATTE $::MATTE $::MATTE]
                     }
-                    $poImg AsPhoto $phImg $chanMap 1.0 $minVal $maxVal
+                    $poImg AsPhoto $phThumb $chanMap
+                    poImgUtil DeleteImg $poImg
                 }
             } else {
-                poLog Error "Can't read image $imgName ($err1)"
-                error "Can't read image \"$imgName\""
-            }
-        }
-        dict set imgDict phImg $phImg
-        dict set imgDict poImg $poImg
+                set w [image width  $phImg]
+                set h [image height $phImg]
 
-        set totalTime [poWatch Lookup _poImgMiscSwatch]
-        poLog Info [format "%.2f sec: LoadImg %s" $totalTime $imgName]
-
-        return $imgDict
-    }
-
-    proc LoadImgScaled { imgName newWidth newHeight } {
-        poWatch Start _poImgMiscSwatch
-
-        set ext [file extension $imgName]
-        set fmtStr [poImgType GetFmtByExt $ext]
-        if { $fmtStr eq "" } {
-            poLog Warning "Extension \"$ext\" not in image type list."
-            set fmtCmd ""
-        } else {
-            set optStr [poImgType GetOptByFmt $fmtStr "read"]
-            set fmtCmd [format "-format \"%s %s\"" [string tolower $fmtStr] $optStr]
-        }
-
-        # Try to read an image from file.
-        # 1. Try to read it with standard Tk image procs or by using the Img extension.
-        # 2. If this did not succeed, try using the poImg extension, if it exists.
-        set poImg ""
-        set retVal [catch {set phImg [eval {image create photo -file $imgName} \
-                                      $fmtCmd]} err1]
-        if { $retVal != 0 } {
-            # Case (2)
-            set retVal [catch {poImageMode GetFileInfo $imgName w h} err2]
-            if { $retVal != 0 } {
-                poLog Warning "Can't read image $imgName ($err1 $err2)"
-                return ""
-            } else {
                 set xzoom [expr {($w / $newWidth)  + 1}]
                 set yzoom [expr {($h / $newHeight) + 1}]
                 set zoomFact [poMisc Max $xzoom $yzoom]
 
-                set poImg [poImage NewImage [expr {$w / $zoomFact}] \
-                                            [expr {$h / $zoomFact}]]
-                $poImg ReadImageFromFile $imgName true
-
-                set phThumb [image create photo]
-                # Check stored channels in poImage.
-                $poImg GetImgFormat fmtList
-                set chanMap [list $::RED $::GREEN $::BLUE]
-                if { [lindex $fmtList $::RED]   || \
-                     [lindex $fmtList $::GREEN] || \
-                     [lindex $fmtList $::BLUE] } {
-                     if { [lindex $fmtList $::MATTE] } {
-                        set chanMap [list $::RED $::GREEN $::BLUE $::MATTE]
-                    } else {
-                        set chanMap [list $::RED $::GREEN $::BLUE]
-                    }
-                } elseif { [lindex $fmtList $::MATTE] && \
-                           [lindex $fmtList $::BRIGHTNESS] } {
-                    set chanMap [list $::BRIGHTNESS $::BRIGHTNESS $::BRIGHTNESS $::MATTE]
-                } elseif { [lindex $fmtList $::BRIGHTNESS] } {
-                    set chanMap [list $::BRIGHTNESS $::BRIGHTNESS $::BRIGHTNESS]
-                } elseif { [lindex $fmtList $::DEPTH] } {
-                    set chanMap [list $::DEPTH $::DEPTH $::DEPTH]
-                } elseif { [lindex $fmtList $::MATTE] } {
-                    set chanMap [list $::MATTE $::MATTE $::MATTE]
+                if { $zoomFact > 1 } {
+                    set phThumb [image create photo \
+                             -width  [expr {$w / $zoomFact}] \
+                             -height [expr {$h / $zoomFact}]]
+                    $phThumb copy $phImg -subsample $zoomFact
+                } else {
+                    set phThumb [image create photo]
+                    $phThumb copy $phImg
                 }
-                $poImg AsPhoto $phThumb $chanMap
-                poImgUtil DeleteImg $poImg
+                image delete $phImg
             }
-        } else {
-            set w [image width  $phImg]
-            set h [image height $phImg]
-
-            set xzoom [expr {($w / $newWidth)  + 1}]
-            set yzoom [expr {($h / $newHeight) + 1}]
-            set zoomFact [poMisc Max $xzoom $yzoom]
-
-            if { $zoomFact > 1 } {
-                set phThumb [image create photo \
-                         -width  [expr {$w / $zoomFact}] \
-                         -height [expr {$h / $zoomFact}]]
-                $phThumb copy $phImg -subsample $zoomFact
-            } else {
-                set phThumb [image create photo]
-                $phThumb copy $phImg
-            }
-            image delete $phImg
         }
         set ws [image width  $phThumb]
         set hs [image height $phThumb]
@@ -228,11 +254,13 @@ namespace eval poImgMisc {
 
         set totalTime [poWatch Lookup _poImgMiscSwatch]
         poLog Info [format "%.2f sec: LoadImgScaled %s %d %d" $totalTime $imgName $newWidth $newHeight]
-        return $phPlace
+        dict set imgDict phImg  $phPlace
+        dict set imgDict width  $w
+        dict set imgDict height $h
+        return $imgDict
     }
 
     proc CreateThumbImg { phImg thumbSize } {
-
         set w [image width  $phImg]
         set h [image height $phImg]
 
@@ -278,7 +306,7 @@ namespace eval poImgMisc {
         poLog Info "Reading bitmap with built-in parser"
         set retVal [catch {open $bmpFile r} fp]
         if { $retVal != 0 } {
-            error "Can't read bitmap file $bmpFile ($fp)"
+            error "Cannot read bitmap file $bmpFile ($fp)"
         }
         gets $fp line
         scan $line "%s %s %d" dummy name width
@@ -297,7 +325,7 @@ namespace eval poImgMisc {
             gets $fp line
         }
         if { ! [string match "static*" $line] } {
-            error "Can't parse bitmap file $bmpFile"
+            error "Cannot parse bitmap file $bmpFile"
         }
 
         # Create an image of appropriate size.
@@ -333,7 +361,7 @@ namespace eval poImgMisc {
 
         set retVal [catch {open $bmpFile w} fp]
         if { $retVal != 0 } {
-            error "Can't write bitmap data to file $bmpFile"
+            error "Cannot write bitmap data to file $bmpFile"
         }
         fconfigure $fp -translation lf
 
@@ -378,3 +406,5 @@ namespace eval poImgMisc {
         close $fp
     }
 }
+
+poImgMisc::_Init

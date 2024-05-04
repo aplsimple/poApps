@@ -1,5 +1,5 @@
 # Module:         poCfgFile
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 02 / 20
 #
 # Distributed under BSD license.
@@ -21,7 +21,7 @@ namespace eval poCfgFile {
     proc Init {} {
         variable sDefaultDir
 
-        set sDefaultDir "~"
+        set sDefaultDir [poMisc GetHomeDir]
     }
 
     proc GetCfgDefaultDir {} {

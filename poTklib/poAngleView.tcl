@@ -1,5 +1,5 @@
 # Module:         poAngleView
-# Copyright:      Paul Obermeier 2016-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2016-2023 / paul@poSoft.de
 # First Version:  2016 / 05 / 02
 #
 # Distributed under BSD license.
@@ -70,7 +70,7 @@ namespace eval poAngleView {
         set p2y [expr { -1 * $p1y }]
         $sPo(headCanv) coords HEADING [expr { $p2x + $size2 }] [expr { $p2y + $size2 }] \
                                       [expr { $p1x + $size2 }] [expr { $p1y + $size2 }]
-        set headDeg [format "%.2f°" $headDeg]
+        set headDeg [format "%.2fÂ°" $headDeg]
         $sPo(headCanv) itemconfigure HEADING_TEXT -text "Head: $headDeg"
 
         set pitchRad [poMisc DegToRad $pitchDeg]
@@ -80,7 +80,7 @@ namespace eval poAngleView {
         set p2y [expr { -1 * $p1y }]
         $sPo(pitchCanv) coords PITCH [expr { $p2x + $size2 }] [expr { $p2y + $size2 }] \
                                      [expr { $p1x + $size2 }] [expr { $p1y + $size2 }]
-        set pitchDeg [format "%.2f°" $pitchDeg]
+        set pitchDeg [format "%.2fÂ°" $pitchDeg]
         $sPo(pitchCanv) itemconfigure PITCH_TEXT -text "Pitch: $pitchDeg"
 
         set rollRad [poMisc DegToRad $rollDeg]
@@ -90,7 +90,7 @@ namespace eval poAngleView {
         set p2y [expr { -1 * $p1y }]
         $sPo(rollCanv) coords ROLL [expr { $p2x + $size2 }] [expr { $p2y + $size2 }] \
                                    [expr { $p1x + $size2 }] [expr { $p1y + $size2 }]
-        set rollDeg [format "%.2f°" $rollDeg]
+        set rollDeg [format "%.2fÂ°" $rollDeg]
         $sPo(rollCanv) itemconfigure ROLL_TEXT -text "Roll: $rollDeg"
     }
 

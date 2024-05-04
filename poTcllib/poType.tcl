@@ -1,5 +1,5 @@
 # Module:         poType
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 07 / 01
 #
 # Distributed under BSD license.
@@ -10,12 +10,21 @@ namespace eval poType {
     variable ns [namespace current]
 
     namespace ensemble create
-    
+
     namespace export Init
     namespace export GetImageInfo GetFileType
-    namespace export IsText IsBinary IsImage
+    namespace export IsText IsBinary IsPdf IsImage
+    namespace export IsBinaryString
 
     proc Init {} {
+    }
+
+    proc IsBinaryString { test } {
+        set binaryRegExp {[\x00-\x08\x0b\x0e-\x1f]}
+        if { [ regexp -- $binaryRegExp $test ] } {
+            return true
+        }
+        return false
     }
 
     proc GetImageInfo { fileName } {
@@ -30,7 +39,7 @@ namespace eval poType {
         # The following keys can be in the dictionary:
         # size:      File size in bytes.
         # subfmt:    Image format string. Supported formats are:
-        #            bmp, dted, flir, gif, ico, jpeg, pcx, png,
+        #            bmp, dted, fits, flir, gif, ico, jpeg, pcx, png,
         #            ppm, raw, sgi, sun, tiff, tga, xbm, xpm
         #            Note, that the subfmt string is the same as needed for the
         #            "-format" option of the Img extension.
@@ -41,7 +50,7 @@ namespace eval poType {
         # ydpi:      Vertical number of dots per inch.
         # subimgs:   Number of sub-images of the image.
         # endian:    Endianess of the image data. Possible values: bigendian, smallendian.
-        # 
+        #
         # If the file format could not be identified, {"none" -1 -1} is returned.
         #
         # See also: GetFileType
@@ -65,18 +74,24 @@ namespace eval poType {
             return $imgDict
         }
 
-        set test [read $fp 1024]
+        set readBytes 1024
+        if { $fileSize < $readBytes } {
+            set readBytes $fileSize
+        }
+        set test [read $fp $readBytes]
 
         if { [string match "GIF8?a*" $test] } {
-            binary scan [string range $test 6 9] ss width height
             set imgFmt "gif"
+            if { $readBytes >= 10 } {
+                binary scan [string range $test 6 9] susu width height
+            }
 
         } elseif { [string equal -length 16 $test "\x89PNG\r\n\32\n\0\0\0\rIHDR"] } {
             binary scan [string range $test 16 23] II width height
             set xdpi 0
             set ydpi 0
             set dpiChunkIndex [string first "pHYs" $test]
-            if { $dpiChunkIndex >= 0 } {
+            if { $dpiChunkIndex >= 0 && [expr {$dpiChunkIndex + 4 + 9 }] < $readBytes } {
                 set dpiChunk [string range $test [expr {$dpiChunkIndex + 4}] [expr {$dpiChunkIndex + 4 + 9}]]
                 binary scan $dpiChunk IIc xdpi ydpi unit
                 if { $unit == 1 } {
@@ -87,55 +102,68 @@ namespace eval poType {
             set imgFmt "png"
 
         } elseif { [string match "\xFF\xD8\xFF*" $test] } {
-            binary scan $test x3H2x2a5 marker txt
-            if { $marker eq "e0" && $txt eq "JFIF\x00" } {
-                set imgSubFmt "jfif"
-            } elseif { $marker eq "e1" && $txt eq "Exif\x00" } {
-                set imgSubFmt "exif"
-            }
-            if { [string length $test] > 18 } {
-                binary scan [string range $test 13 18] cSS unit xdpi ydpi
-                if { $unit == 1 } {
-                    # Dots per inch.
-                } elseif { $unit == 2 } {
-                    # Dots per centimeter
-                    set xdpi [expr {int ($xdpi * 2.54 + 0.5)}]
-                    set ydpi [expr {int ($ydpi * 2.54 + 0.5)}]
-                } else {
-                    set xdpi 0
-                    set ydpi 0
+            if { [string length $test] >= 12 } {
+                binary scan $test x3H2x2a5 marker txt
+                if { $marker eq "e0" && $txt eq "JFIF\x00" } {
+                    set imgSubFmt "jfif"
+                } elseif { $marker eq "e1" && $txt eq "Exif\x00" } {
+                    set imgSubFmt "exif"
                 }
-            }
-            
-            seek $fp 0 start
-            read $fp 2
-            while { ! [eof $fp] } {
-                # Search for the next marker, read the marker type byte, and throw out
-                # any extra "ff"'s.
-                while { [read $fp 1] ne "\xFF" } {
-                    if [eof $fp] break; 
-                }
-                if [eof $fp] break; 
-                while { [set byte [read $fp 1]] eq "\xFF"} {
-                    if [eof $fp] break; 
-                }
-                if [eof $fp] break; 
+                if { [info exists imgSubFmt] } {
+                    if { [string length $test] > 18 } {
+                        binary scan [string range $test 13 18] cSS unit xdpi ydpi
+                        if { $unit == 1 } {
+                            # Dots per inch.
+                        } elseif { $unit == 2 } {
+                            # Dots per centimeter
+                            set xdpi [expr {int ($xdpi * 2.54 + 0.5)}]
+                            set ydpi [expr {int ($ydpi * 2.54 + 0.5)}]
+                        } else {
+                            set xdpi 0
+                            set ydpi 0
+                        }
+                    }
 
-                if { $byte in { \xc0 \xc1 \xc2 \xc3 \xc5 \xc6 \xc7
-                                \xc9 \xca \xcb \xcd \xce \xcf }} {
-                    # This is the SOF marker; read a chunk of data containing the dimensions.
-                    binary scan [read $fp 7] x3SS height width
-                    break
-                } else {
-                    # This is not the the SOF marker; read in the offset of the next marker.
-                    binary scan [read $fp 2] S offset
+                    seek $fp 0 start
+                    read $fp 2
+                    set invalid false
+                    while { ! [eof $fp] } {
+                        # Search for the next marker, read the marker type byte, and throw out
+                        # any extra "ff"'s.
+                        while { [read $fp 1] ne "\xFF" } {
+                            if [eof $fp] break;
+                        }
+                        if [eof $fp] break;
+                        while { [set byte [read $fp 1]] eq "\xFF"} {
+                            if [eof $fp] break;
+                        }
+                        if [eof $fp] break;
 
-                    # The offset includes itself own two bytes so subtract them, then move
-                    # ahead to the next marker.
-                    seek $fp [expr {($offset & 0xffff) - 2}] current
+                        if { $byte in { \xc0 \xc1 \xc2 \xc3 \xc5 \xc6 \xc7
+                                        \xc9 \xca \xcb \xcd \xce \xcf }} {
+                            # This is the SOF marker; read a chunk of data containing the dimensions.
+                            binary scan [read $fp 7] x3SS height width
+                            break
+                        } else {
+                            # This is not the the SOF marker; read in the offset of the next marker.
+                            binary scan [read $fp 2] S offset
+                            set seekOffset [expr {($offset & 0xffff) - 2}]
+                            if { $seekOffset <= 0 } {
+                                set invalid true
+                                break
+                            }
+                            # The offset includes itself own two bytes so subtract them, then move
+                            # ahead to the next marker.
+                            seek $fp $seekOffset current
+                        }
+                    }
+                    if { $invalid } {
+                        catch { unset imgSubFmt }
+                    } else {
+                        set imgFmt "jpeg"
+                    }
                 }
             }
-            set imgFmt "jpeg"
 
         } elseif { [string match "*jP*ftypjp*" $test] } {
             set imgFmt "jp2"
@@ -147,44 +175,79 @@ namespace eval poType {
                 set endian smallendian
             }
 
-            set byteFmt "c"
+            set noFmt    ""
+            set byteFmt  "c"
+            set ubyteFmt "cu"
             if { $endian eq "smallendian" } {
-                set longFmt   "i"
-                set shortFmt  "s"
-                set doubleFmt "q"
+                set shortFmt   "s"
+                set longFmt    "i"
+                set ushortFmt  "su"
+                set ulongFmt   "iu"
+                set floatFmt   "r"
+                set doubleFmt  "q"
             } else {
-                set longFmt   "I"
-                set shortFmt  "S"
-                set doubleFmt "Q"
+                set shortFmt   "S"
+                set longFmt    "I"
+                set ushortFmt  "Su"
+                set ulongFmt   "Iu"
+                set floatFmt   "R"
+                set doubleFmt  "Q"
             }
-            set typesFmt(1) $byteFmt
-            set typesFmt(3) $shortFmt
-            set typesFmt(4) $longFmt
-            set typesFmt(5) $doubleFmt
+            # See https://www.fileformat.info/format/tiff/egff.htm
+            set typesFmt(1)  $ubyteFmt   ; # BYTE     8-bit unsigned integer
+            set typesFmt(2)  $noFmt      ; # ASCII    8-bit NULL terminatted string
+            set typesFmt(3)  $ushortFmt  ; # SHORT    16-bit unsigned integer
+            set typesFmt(4)  $ulongFmt   ; # LONG     32-bit unsigned integer
+            set typesFmt(5)  $noFmt      ; # RATIONAL Two 32-bit unsigned integers
+
+            # The TIFF 6.0 revision added the following new data types:
+            set typesFmt(6)  $byteFmt    ; # SBYTE    8-bit signed integer
+            set typesFmt(7)  $noFmt      ; # UNDEFINE 8-bit byte
+            set typesFmt(8)  $shortFmt   ; # SSHORT   16-bit signed integer
+            set typesFmt(9)  $longFmt    ; # SLONG    32-bit signed integer
+            set typesFmt(10) $noFmt      ; # SRATIONAL Two 32-bit signed integers
+            set typesFmt(11) $floatFmt   ; # FLOAT     4-byte single-precision IEEE floating-point value
+            set typesFmt(12) $doubleFmt  ; # DOUBLE    8-byte double-precision IEEE floating-point value
 
             seek $fp 4 start
             set tiff [read $fp 4]
             binary scan $tiff $longFmt offset
 
-            seek $fp $offset start
-            set tiff [read $fp 2]
-            binary scan $tiff $shortFmt numDirs
+            if { $offset >= 0 } {
+                seek $fp $offset start
+                set tiff [read $fp 2]
+                set retVal [binary scan $tiff $shortFmt numDirs]
+                if { $retVal < 1 } {
+                    set numDirs 0
+                }
+            } else {
+                set numDirs 0
+            }
 
             set xdpi 0
             set ydpi 0
+            set valid true
             while { $numDirs > 0 } {
                 set tiff [read $fp 12]
+                if { [string length $tiff] < 12 } {
+                    set valid false
+                    break
+                }
                 binary scan [string range $tiff 0 1] $shortFmt tag
                 if { $tag == 256 || $tag == 257 } {
                     # TIFFTAG_IMAGEWIDTH  256
                     # TIFFTAG_IMAGELENGTH 257
                     binary scan [string range $tiff 2 3] $shortFmt type
-                    if { [info exists typesFmt($type)] } {
+                    if { [info exists typesFmt($type)] && $typesFmt($type) ne $noFmt } {
                         binary scan [string range $tiff 8 11] $typesFmt($type) val
                         if { $tag == 256 } {
-                            set width $val
+                            if { ! [info exists width] } {
+                                set width $val
+                            }
                         } else {
-                            set height $val
+                            if { ! [info exists height] } {
+                                set height $val
+                            }
                         }
                     }
                 }
@@ -194,7 +257,7 @@ namespace eval poType {
                     # TIFFTAG_YRESOLUTION    283
                     binary scan [string range $tiff 2 3] $shortFmt type
                     if { $type == 3 } {
-                        binary scan [string range $tiff 8 11] $shortFmt resUnit 
+                        binary scan [string range $tiff 8 11] $shortFmt resUnit
                         if { $resUnit == 3 } {
                             # Units are centimeters.
                             set xdpi [expr {$xdpi * 2.54 + 0.5}]
@@ -202,18 +265,26 @@ namespace eval poType {
                         }
                     } elseif { $type == 5 } {
                         binary scan [string range $tiff 8 11] $longFmt valueOffset
-                        set curPos [tell $fp]
-                        seek $fp $valueOffset start
-                        set tiff [read $fp 8]
-                        binary scan [string range $tiff 0 3] $longFmt nominator
-                        binary scan [string range $tiff 4 7] $longFmt denominator
-                        set dpi [expr {double($nominator) / double($denominator)}]
-                        if { $tag == 282 } {
-                            set xdpi $dpi
-                        } elseif { $tag == 283 } {
-                            set ydpi $dpi
+                        if { $valueOffset < 0 } {
+                            set valid false
+                            break
                         }
-                        seek $fp $curPos start
+                        if { [expr { $valueOffset + 8 }] <= $readBytes } {
+                            set curPos [tell $fp]
+                            seek $fp $valueOffset start
+                            set tiff [read $fp 8]
+                            binary scan [string range $tiff 0 3] $longFmt nominator
+                            binary scan [string range $tiff 4 7] $longFmt denominator
+                            if { $nominator > 0 && $denominator > 0 } {
+                                set dpi [expr {double($nominator) / double($denominator)}]
+                                if { $tag == 282 } {
+                                    set xdpi $dpi
+                                } elseif { $tag == 283 } {
+                                    set ydpi $dpi
+                                }
+                            }
+                            seek $fp $curPos start
+                        }
                     }
                 }
                 if { [info exists width] && [info exists height] && \
@@ -222,9 +293,11 @@ namespace eval poType {
                 }
                 incr numDirs -1
             }
-            set xdpi [expr {int ($xdpi)}]
-            set ydpi [expr {int ($ydpi)}]
-            set imgFmt "tiff"
+            if { $valid } {
+                set xdpi [expr {int ($xdpi)}]
+                set ydpi [expr {int ($ydpi)}]
+                set imgFmt "tiff"
+            }
 
         } elseif { [string match "P\[12356\]\[\x0a\x0d\]*" $test] } {
             if [regexp -- {P[12356]\s*#} $test] {
@@ -260,12 +333,12 @@ namespace eval poType {
 
         } elseif { [string match "\x01\xda*" $test] } {
             binary scan [string range $test 6 9] SS width height
-            set imgFmt "sgi" 
+            set imgFmt "sgi"
             set endian "bigendian"
 
         } elseif { [string match "\xda\x01*" $test] } {
             binary scan [string range $test 6 9] ss width height
-            set imgFmt "sgi" 
+            set imgFmt "sgi"
             set endian "smallendian"
 
         } elseif { [regexp -- {^[\x0a].+.+[\x01\x08]} $test] } {
@@ -275,25 +348,27 @@ namespace eval poType {
             binary scan [string range $test 12 16] ss xdpi ydpi
             set imgFmt "pcx"
 
-        } elseif { [string match "BM*" $test] && ([string range $test 6 9] eq "\x00\x00\x00\x00") } {
-            binary scan [string range $test 14 14] c bmpType
-            if { $bmpType == 40 || $bmpType == 64 } {
-                # BITMAPINFOHEADER has a size of 40 bytes
-                binary scan [string range $test 18 25] ii width height
-                binary scan [string range $test 38 45] ii xdpi ydpi
-                set xdpi [expr { int( $xdpi * 0.0254 + 0.5 )}]
-                set ydpi [expr { int( $ydpi * 0.0254 + 0.5 )}]
-            } elseif { $bmpType == 12 } {
-                # BITMAPCOREHEADER has a size of 12 bytes
-                binary scan [string range $test 18 21] ss width height
-            } elseif { $bmpType == 108 } {
-                # BITMAPV4HEADER has a size of 108 bytes
-                binary scan [string range $test 18 25] ii width height
-            } elseif { $bmpType == 124 } {
-                # BITMAPV5HEADER has a size of 124 bytes
-                binary scan [string range $test 18 25] ii width height
+        } elseif { [string match "BM*" $test] } {
+            if { [string length $test] > 14 } {
+                binary scan [string range $test 14 14] c bmpType
+                if { $bmpType == 40 || $bmpType == 64 } {
+                    # BITMAPINFOHEADER has a size of 40 bytes
+                    binary scan [string range $test 18 25] ii width height
+                    binary scan [string range $test 38 45] ii xdpi ydpi
+                    set xdpi [expr { int( $xdpi * 0.0254 + 0.5 )}]
+                    set ydpi [expr { int( $ydpi * 0.0254 + 0.5 )}]
+                } elseif { $bmpType == 12 } {
+                    # BITMAPCOREHEADER has a size of 12 bytes
+                    binary scan [string range $test 18 21] ss width height
+                } elseif { $bmpType == 108 } {
+                    # BITMAPV4HEADER has a size of 108 bytes
+                    binary scan [string range $test 18 25] ii width height
+                } elseif { $bmpType == 124 } {
+                    # BITMAPV5HEADER has a size of 124 bytes
+                    binary scan [string range $test 18 25] ii width height
+                }
+                set imgFmt "bmp"
             }
-            set imgFmt "bmp"
 
         } elseif { [string match "\x00\x00\x01\x00*" $test] } {
             binary scan [string range $test 4 8] scc numImgs width height
@@ -312,6 +387,21 @@ namespace eval poType {
                    -> dummy1 width dummy2 height
             set imgFmt "raw"
 
+        } elseif { [string match "SIMPLE*=*T*" $test] } {
+            set axis1 [string first "NAXIS1" $test]
+            if { $axis1 >= 0 } {
+                regexp -- {NAXIS1\s+=\s+(\d+)} [string range $test $axis1 end] -> width
+                if { $width > 0 } {
+                    set axis2 [string first "NAXIS2" $test]
+                    if { $axis2 >= 0 } {
+                        regexp -- {NAXIS2\s+=\s+(\d+)} [string range $test $axis2 end] -> height
+                        if { $height > 0 } {
+                            set imgFmt "fits"
+                        }
+                    }
+                }
+            }
+
         } elseif { [string match "FPF Public Image Format*" $test] } {
             binary scan [string range $test 44 48] ss width height
             set imgFmt "flir"
@@ -322,7 +412,16 @@ namespace eval poType {
 
         } elseif { [string match "*<svg*" $test] } {
             set imgFmt "svg"
+
+        } elseif { [string match "icns*" $test] } {
+            set imgFmt "icns"
+            set endian "bigendian"
+
+        } elseif { [string match "snci*" $test] } {
+            set imgFmt "icns"
+            set endian "smallendian"
         }
+
         close $fp
         if { ! [info exists imgFmt] } {
             return $imgDict
@@ -364,8 +463,8 @@ namespace eval poType {
         #
         # Note: This is an enhanced version of procedure ::fileutil::fileType from tcllib.
         #
-        # Return the type of the file. 
-        # May be a list if multiple tests are positive (eg, a file could be both a directory 
+        # Return the type of the file.
+        # May be a list if multiple tests are positive (eg, a file could be both a directory
         # and a link).  In general, the list proceeds from most general (eg, binary) to most
         # specific (eg, gif), so the full type for a GIF file would be "binary graphic gif".
         #
@@ -384,7 +483,7 @@ namespace eval poType {
         #    text
         #    script <interpreter>
         #    executable elf dos pe ne dos pe ne
-        #    binary graphic [bmp, dted, flir, gif, ico, jpeg, pcx, png,
+        #    binary graphic [bmp, dted, fits, flir, gif, ico, jpeg, pcx, png,
         #                    ppm, raw, sgi, sun, svg, tiff, tga, xbm, xpm]
         #   ps, eps, pdf
         #   html
@@ -431,13 +530,11 @@ namespace eval poType {
             return $typeDict
         }
 
-        set binaryRegExp {[\x00-\x08\x0b\x0e-\x1f]}
-        if { [ regexp -- $binaryRegExp $test ] } {
+        set isBinary [IsBinaryString $test]
+        if { $isBinary } {
             dict set typeDict style "binary"
-            set isBinary 1
         } else {
             dict set typeDict style "text"
-            set isBinary 0
             set dosEol "*\r\n*"
             if { [string match $dosEol $test] } {
                 dict set typeDict substyle "dos"
@@ -489,16 +586,6 @@ namespace eval poType {
         } elseif { $isBinary && [string match "\x50\x4b\x03\x04*" $test] } {
             dict set typeDict fmt    "compressed"
             dict set typeDict subfmt "zip"
-
-        } elseif { $isBinary && [string match "icns*" $test] } {
-            dict set typeDict fmt    "graphic"
-            dict set typeDict subfmt "icns"
-            dict set typeDict endian "bigendian"
-
-        } elseif { $isBinary && [string match "snci*" $test] } {
-            dict set typeDict fmt    "graphic"
-            dict set typeDict subfmt "icns"
-            dict set typeDict endian "smallendian"
 
         } elseif { [string match "\%PDF\-*" $test] } {
             dict set typeDict fmt   "pdf"
@@ -597,7 +684,7 @@ namespace eval poType {
         # textType: dos unix html script xml
         set catchVal [catch {GetFileType $fileName} typeDict]
         if { $catchVal } {
-            return false 
+            return false
         } else {
             if { [dict exists $typeDict style] && [dict get $typeDict style] eq "text" } {
                 if { $textType eq "" } {
@@ -618,9 +705,22 @@ namespace eval poType {
     proc IsBinary { fileName { binaryType "" } } {
         set catchVal [catch {GetFileType $fileName} typeDict]
         if { $catchVal } {
-            return false 
+            return false
         } else {
             if { [dict exists $typeDict style] && [dict get $typeDict style] eq "binary" } {
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+
+    proc IsPdf { fileName } {
+        set catchVal [catch {GetFileType $fileName} typeDict]
+        if { $catchVal } {
+            return false
+        } else {
+            if { [dict exists $typeDict fmt] && [dict get $typeDict fmt] eq "pdf" } {
                 return true
             } else {
                 return false

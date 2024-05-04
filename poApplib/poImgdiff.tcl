@@ -1,5 +1,5 @@
 # Module:         poImgdiff
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 11 / 29
 #
 # Distributed under BSD license.
@@ -28,7 +28,8 @@ namespace eval poImgdiff {
     namespace ensemble create
 
     namespace export Init LoadSettings SaveSettings
-    namespace export ShowMainWin ParseCommandLine IsOpen
+    namespace export ShowMainWin CloseAppWindow
+    namespace export ParseCommandLine IsOpen
     namespace export ShowDiffImg ShowDiffImgOnStartup
     namespace export AddImg
     namespace export GetUsageMsg
@@ -51,6 +52,16 @@ namespace eval poImgdiff {
         set sPo(optSaveHisto) ""
 
         poWatch Start swatch
+    }
+
+    proc GetSupportedExtensions {} {
+        set extList [list]
+        foreach fmt [poImgType GetFmtList] {
+            foreach ext [poImgType GetExtList $fmt] {
+                lappend extList $ext
+            }
+        }
+        return $extList
     }
 
     proc SetWindowPos { winName x y w h } {
@@ -153,16 +164,16 @@ namespace eval poImgdiff {
                      $sPo(zoomFactor)]
     }
 
-    proc SetInfoType { infoType } {
+    proc SetShowImageTab { infoTabNum } {
         variable sPo
 
-        set sPo(infoType) $infoType
+        set sPo(showImageTab) $infoTabNum
     }
 
-    proc GetInfoType {} {
+    proc GetShowImageTab {} {
         variable sPo
 
-        return [list $sPo(infoType)]
+        return [list $sPo(showImageTab)]
     }
 
     proc SetMainWindowSash { sashY } {
@@ -222,7 +233,7 @@ namespace eval poImgdiff {
         set sPo(rightCol,raw) ""
     }
 
-    proc PrintPixelValue { canvasId x y } {
+    proc PrintPixelValue { canvasId x y printLog } {
         variable sPo
 
         set px [expr int([$canvasId canvasx $x] / $sPo($canvasId,zoomFactor))]
@@ -249,7 +260,7 @@ namespace eval poImgdiff {
                         set rgbHex [format "#%02X%02X%02X" $r $g $b]
                         $sPo(leftCol,hex) configure -background $rgbHex
                         if { [info exists sPo(left,rawDict)] } {
-                            set sPo(leftCol,raw) [poImgDict GetPixelValueAsString sPo(left,rawDict) $px $py $sPo(diff,raw,precision)]
+                            set sPo(leftCol,raw) [pawt GetImagePixelAsString sPo(left,rawDict) $px $py $sPo(diff,raw,precision)]
                         }
                     }
                 } else {
@@ -262,7 +273,7 @@ namespace eval poImgdiff {
                         set rgbHex [format "#%02X%02X%02X" $r $g $b]
                         $sPo(leftCol,hex) configure -background $rgbHex
                         if { [info exists sPo(left,rawDict)] } {
-                            set sPo(leftCol,raw) [poImgDict GetPixelValueAsString sPo(left,rawDict) $px $py $sPo(diff,raw,precision)]
+                            set sPo(leftCol,raw) [pawt GetImagePixelAsString sPo(left,rawDict) $px $py $sPo(diff,raw,precision)]
                         }
                     }
                 }
@@ -291,7 +302,7 @@ namespace eval poImgdiff {
                         set rgbHex [format "#%02X%02X%02X" $r $g $b]
                         $sPo(rightCol,hex) configure -background $rgbHex
                         if { [info exists sPo(right,rawDict)] } {
-                            set sPo(rightCol,raw) [poImgDict GetPixelValueAsString sPo(right,rawDict) $px $py $sPo(diff,raw,precision)]
+                            set sPo(rightCol,raw) [pawt GetImagePixelAsString sPo(right,rawDict) $px $py $sPo(diff,raw,precision)]
                         }
                     }
                 } else {
@@ -304,12 +315,25 @@ namespace eval poImgdiff {
                         set rgbHex [format "#%02X%02X%02X" $r $g $b]
                         $sPo(rightCol,hex) configure -background $rgbHex
                         if { [info exists sPo(right,rawDict)] } {
-                            set sPo(rightCol,raw) [poImgDict GetPixelValueAsString sPo(right,rawDict) $px $py $sPo(diff,raw,precision)]
+                            set sPo(rightCol,raw) [pawt GetImagePixelAsString sPo(right,rawDict) $px $py $sPo(diff,raw,precision)]
                         }
                     }
                 }
             } else {
                 ClearPixelValue
+            }
+        }
+        if { $printLog } {
+            if { [poLog GetShowConsole] } {
+                if { [poMisc HaveTcl87OrNewer] } {
+                    puts "$sPo(curPos,x) $sPo(curPos,y): \
+                          $sPo(leftCol,r) $sPo(leftCol,g) $sPo(leftCol,b) $sPo(leftCol,a) \
+                          $sPo(rightCol,r) $sPo(rightCol,g) $sPo(rightCol,b) $sPo(rightCol,a)"
+                } else {
+                    puts "$sPo(curPos,x) $sPo(curPos,y): \
+                          $sPo(leftCol,r) $sPo(leftCol,g) $sPo(leftCol,b) \
+                          $sPo(rightCol,r) $sPo(rightCol,g) $sPo(rightCol,b)"
+                }
             }
         }
     }
@@ -324,7 +348,7 @@ namespace eval poImgdiff {
         set sPo(diffCol,b) ""
     }
 
-    proc PrintDiffPixelValue { canvasId photoId x y } {
+    proc PrintDiffPixelValue { canvasId photoId x y printLog } {
         variable sPo
 
         set px [expr int([$canvasId canvasx $x] / $sPo($canvasId,zoomFactor))]
@@ -349,6 +373,7 @@ namespace eval poImgdiff {
                 set sPo(diffCol,b) [FormatColorVal $b]
                 set rgbHex [format "#%02X%02X%02X" $r $g $b]
                 $sPo(diffCol,hex) configure -background $rgbHex
+                PrintPixelValue $sPo(left) $x $y $printLog
             }
         } else {
             ClearDiffPixelValue
@@ -362,36 +387,31 @@ namespace eval poImgdiff {
         }
     }
 
+    proc SwitchImageTab {} {
+        variable sPo
+
+        set sPo(showImageTab) [expr ! $sPo(showImageTab)]
+        ToggleImageTab
+    }
+
+    proc ToggleImageTab {} {
+        variable sPo
+
+        $sPo(infoPaneL) select [expr ! $sPo(showImageTab)]
+        $sPo(infoPaneR) select [expr ! $sPo(showImageTab)]
+    }
+
     proc UpdateInfoWidget { side } {
         variable sPo
 
-        if { $sPo(infoType) eq "img" } {
-            if { [info exists sPo($side,photo)] } {
-                if { [info exists sPo($side,rawDict)] } {
-                    poWinInfo UpdateImgInfo $sPo($side,Info) $sPo($side,photo) "" $sPo($side,rawDict)
-                } else {
-                    poWinInfo UpdateImgInfo $sPo($side,Info) $sPo($side,photo)
-                }
+        if { [info exists sPo($side,photo)] } {
+            if { [info exists sPo($side,rawDict)] } {
+                poWinInfo UpdateImgInfo $sPo($side,ImgFrame) $sPo($side,name) $sPo($side,photo) "" $sPo($side,rawDict)
+            } else {
+                poWinInfo UpdateImgInfo $sPo($side,ImgFrame) $sPo($side,name) $sPo($side,photo)
             }
-            poWinInfo SetTitle $sPo($side,Info) "[string totitle $side] image information"
-        } else {
-            if { [info exists sPo($side,photo)] } {
-                poWinInfo UpdateFileInfo $sPo($side,Info) $sPo($side,name)
-            }
-            poWinInfo SetTitle $sPo($side,Info) "[string totitle $side] file information"
+            poWinInfo UpdateFileInfo $sPo($side,FileFrame) $sPo($side,name)
         }
-    }
-
-    proc UpdateAllInfoWidgets {} {
-        UpdateInfoWidget "left"
-        UpdateInfoWidget "right"
-    }
-
-    proc SwitchInfoWidgetType { infoType } {
-        variable sPo
-
-        set sPo(infoType) $infoType
-        UpdateAllInfoWidgets
     }
 
     proc ToggleZoomRect {} {
@@ -655,13 +675,11 @@ namespace eval poImgdiff {
 
         poMenu AddCommand $viewMenu "Difference image"     "Ctrl+D" ${ns}::ShowDiffImg
         poMenu AddCommand $viewMenu "Difference RAW image" "Ctrl+N" ${ns}::ShowRawDiffImg
-        poMenu AddRadio   $viewMenu "File info"            "Ctrl+F" ${ns}::sPo(infoType) "file" ${ns}::UpdateAllInfoWidgets
-        poMenu AddRadio   $viewMenu "Image info"           "Ctrl+I" ${ns}::sPo(infoType) "img"  ${ns}::UpdateAllInfoWidgets
+        poMenu AddCheck   $viewMenu "Show image tab"       "F9"     ${ns}::sPo(showImageTab) ${ns}::ToggleImageTab
         poMenu AddCheck   $viewMenu "Zoom rectangle"       "Ctrl+Y" ${ns}::sPo(zoomRectExists) "${ns}::ToggleZoomRect"
         bind $sPo(tw) <Control-m> ${ns}::SwitchAutofit
         bind $sPo(tw) <Control-y> ${ns}::SwitchZoomRect
-        bind $sPo(tw) <Control-f> "${ns}::SwitchInfoWidgetType file"
-        bind $sPo(tw) <Control-i> "${ns}::SwitchInfoWidgetType img"
+        bind $sPo(tw) <Key-F9>    ${ns}::SwitchImageTab
         bind $sPo(tw) <Control-d> ${ns}::ShowDiffImg
         bind $sPo(tw) <Control-n> ${ns}::ShowRawDiffImg
 
@@ -759,13 +777,50 @@ namespace eval poImgdiff {
         set sPo($sPo(left),zoomFactor)  1.00
         set sPo($sPo(right),zoomFactor) 1.00
 
-        # Create a Drag-And-Drop binding for the 2 image canvases.
+        # Create Drag-And-Drop binding for the 2 image canvases.
         poDragAndDrop AddCanvasBinding $sPo(left)  ${ns}::ReadImgByDrop
         poDragAndDrop AddCanvasBinding $sPo(right) ${ns}::ReadImgByDrop
 
-        set sPo(left,Info)  [poWinInfo Create $infofr.leftfr]
-        set sPo(right,Info) [poWinInfo Create $infofr.rightfr]
-        UpdateAllInfoWidgets
+        # Create image and file info tabs for left and right files.
+        set sPo(infoPaneL) $infofr.leftfr.nb
+        ttk::notebook $sPo(infoPaneL) -style Hori.TNotebook
+        pack $sPo(infoPaneL) -fill both -expand 1 -padx 2 -pady 3
+        ttk::notebook::enableTraversal $sPo(infoPaneL)
+
+        set imgfrL  $sPo(infoPaneL).imgfr
+        set filefrL $sPo(infoPaneL).filefr
+        ttk::frame $imgfrL
+        ttk::frame $filefrL
+        pack  $imgfrL  -expand 0 -fill both
+        pack  $filefrL -expand 0 -fill both
+
+        $sPo(infoPaneL) add $imgfrL  -text "Image Info"
+        $sPo(infoPaneL) add $filefrL -text "File Info"
+
+        set sPo(infoPaneR) $infofr.rightfr.nb
+        ttk::notebook $sPo(infoPaneR) -style Hori.TNotebook
+        pack $sPo(infoPaneR) -fill both -expand 1 -padx 2 -pady 3
+        ttk::notebook::enableTraversal $sPo(infoPaneR)
+
+        set imgfrR  $sPo(infoPaneR).imgfr
+        set filefrR $sPo(infoPaneR).filefr
+        ttk::frame $imgfrR
+        ttk::frame $filefrR 
+        pack  $imgfrR  -expand 0 -fill both
+        pack  $filefrR -expand 0 -fill both
+
+        $sPo(infoPaneR) add $imgfrR  -text "Image Info"
+        $sPo(infoPaneR) add $filefrR -text "File Info"
+
+        set sPo(left,ImgFrame)  [poWinInfo Create $imgfrL ""]
+        set sPo(right,ImgFrame) [poWinInfo Create $imgfrR ""]
+
+        set sPo(left,FileFrame)  [poWinInfo Create $filefrL ""]
+        set sPo(right,FileFrame) [poWinInfo Create $filefrR ""]
+
+        # Create Drag-And-Drop bindings for the info panes.
+        poDragAndDrop AddTtkBinding $sPo(infoPaneL) ${ns}::ReadImgByDrop
+        poDragAndDrop AddTtkBinding $sPo(infoPaneR) ${ns}::ReadImgByDrop
 
         set sPo(left,fileCombo) [poWinSelect CreateFileSelect $sPo(tw).fr.filefr.left \
                                $sPo(left,lastFile) "open" ""]
@@ -816,7 +871,7 @@ namespace eval poImgdiff {
         pack $pixfr.leftFr.er $pixfr.leftFr.eg $pixfr.leftFr.eb -anchor w -side left
         if { [poMisc HaveTcl87OrNewer] } {
             ttk::label $pixfr.leftFr.ea -textvariable ${ns}::sPo(leftCol,a) -width 3 -anchor e
-            pack $pixfr.leftFr.ea $pixfr.leftFr.ew -anchor w -side left
+            pack $pixfr.leftFr.ea -anchor w -side left
         }
         pack $pixfr.leftFr.ew -anchor w -side left
 
@@ -838,10 +893,12 @@ namespace eval poImgdiff {
 
         ConfigureRawValWidgets
 
-        $sPo(left)  bind $sPo(left)  <Motion> "${ns}::PrintPixelValue $sPo(left)  %x %y"
-        $sPo(right) bind $sPo(right) <Motion> "${ns}::PrintPixelValue $sPo(right) %x %y"
-        $sPo(left)  bind $sPo(left)  <Leave>  "${ns}::ClearPixelValue"
-        $sPo(right) bind $sPo(right) <Leave>  "${ns}::ClearPixelValue"
+        $sPo(left)  bind $sPo(left)  <Motion>   "${ns}::PrintPixelValue $sPo(left)  %x %y false"
+        $sPo(right) bind $sPo(right) <Motion>   "${ns}::PrintPixelValue $sPo(right) %x %y false"
+        $sPo(left)  bind $sPo(left)  <Button-1> "${ns}::PrintPixelValue $sPo(left)  %x %y true"
+        $sPo(right) bind $sPo(right) <Button-1> "${ns}::PrintPixelValue $sPo(right) %x %y true"
+        $sPo(left)  bind $sPo(left)  <Leave>    "${ns}::ClearPixelValue"
+        $sPo(right) bind $sPo(right) <Leave>    "${ns}::ClearPixelValue"
         bind $sPo(left)  <Double-1> "${ns}::OpenLeftImgFile"
         bind $sPo(right) <Double-1> "${ns}::OpenRightImgFile"
 
@@ -886,17 +943,14 @@ namespace eval poImgdiff {
                   "${ns}::ShowHistogram lin" "Show linear histogram (Shift+H)"
         poToolbar AddButton $toolfr [::poBmpData::diff] ${ns}::ShowDiffImg \
                   "Show difference image (Ctrl+D)"
-        poToolbar AddRadioButton $toolfr [::poBmpData::infofile] \
-                  "${ns}::UpdateAllInfoWidgets" "Show file infos (Ctrl+F)" \
-                  -variable ${ns}::sPo(infoType) -value file
-        poToolbar AddRadioButton $toolfr [::poBmpData::infoimg] \
-                  "${ns}::UpdateAllInfoWidgets" "Show image statistics (Ctrl+I)" \
-                  -variable ${ns}::sPo(infoType) -value img
+        poToolbar AddCheckButton $toolfr [::poBmpData::infofile] \
+                  "${ns}::ToggleImageTab" "Show image tab (F9)" \
+                  -variable ${ns}::sPo(showImageTab)
 
         # Create widget for status messages.
         set sPo(StatusWidget) [poWin CreateStatusWidget $sPo(tw).fr.statfr]
 
-        WriteInfoStr $sPo(initStr)
+        WriteInfoStr $sPo(initStr) $sPo(initType)
 
         poWinSelect SetValue $sPo(left,fileCombo)  $sPo(left,lastFile)
         poWinSelect SetValue $sPo(right,fileCombo) $sPo(right,lastFile)
@@ -916,6 +970,8 @@ namespace eval poImgdiff {
         $sPo(paneWin) sashpos 0 $sPo(sashY)
         ConfigCanvas $sPo(left)
         ConfigCanvas $sPo(right)
+
+        ToggleImageTab
 
         if { [poApps GetHideWindow] } {
             wm withdraw $sPo(tw)
@@ -1041,7 +1097,7 @@ namespace eval poImgdiff {
         variable ns
 
         poMenu DeleteMenuEntries $menuId 2
-        poMenu AddRecentFileList $menuId ${ns}::ReadImg $side
+        poMenu AddRecentFileList $menuId ${ns}::ReadImg $side -extensions [GetSupportedExtensions]
     }
 
     proc ConfigCanvas { canvasId { photoId "" } } {
@@ -1249,17 +1305,19 @@ namespace eval poImgdiff {
         poWatch Reset swatch
         if { [poImgAppearance GetShowRawCurValue] || [poImgAppearance GetShowRawImgInfo] } {
             if { [poImgAppearance GetShowRawCurValue] } {
-                if { [poType IsImage $imgName "flir"] } {
-                    set sPo($side,rawDict) [poFlirParse ReadImageFile $imgName]
+                if { [poType IsImage $imgName "raw"] } {
+                    set sPo($side,rawDict) [pawt::raw::ReadImageFile $imgName]
+                } elseif { [poType IsImage $imgName "flir"] } {
+                    set sPo($side,rawDict) [pawt::flir::ReadImageFile $imgName]
+                } elseif { [poType IsImage $imgName "fits"] } {
+                    set sPo($side,rawDict) [pawt::fits::ReadImageFile $imgName]
                 } elseif { [poType IsImage $imgName "ppm"] } {
-                    set sPo($side,rawDict) [poPpmParse ReadImageFile $imgName]
-                } elseif { [poType IsImage $imgName "raw"] } {
-                    set sPo($side,rawDict) [poRawParse ReadImageFile $imgName]
+                    set sPo($side,rawDict) [pawt::ppm::ReadImageFile $imgName]
                 }
             }
             if { [poImgAppearance GetShowRawImgInfo] } {
-                catch { poImgDict GetImageMinMax     sPo($side,rawDict) }
-                catch { poImgDict GetImageMeanStdDev sPo($side,rawDict) }
+                catch { pawt GetImageMinMax     sPo($side,rawDict) }
+                catch { pawt GetImageMeanStdDev sPo($side,rawDict) }
             }
         }
 
@@ -1311,7 +1369,7 @@ namespace eval poImgdiff {
     proc ReadImgByDrop { canvasId fileList } {
         variable sPo
 
-        if { $canvasId eq $sPo(left) } {
+        if { $canvasId eq $sPo(left) || $canvasId eq $sPo(infoPaneL) } {
             set side left
         } else {
             set side right
@@ -1390,7 +1448,8 @@ namespace eval poImgdiff {
 
         set canvId $sPo($side)
         if { [info exists sPo($side,photo)] } {
-            poWinInfo Clear $sPo($side,Info)
+            poWinInfo Clear $sPo($side,ImgFrame)
+            poWinInfo Clear $sPo($side,FileFrame)
             image delete $sPo($side,photo)
             unset sPo($side,photo)
         }
@@ -1432,7 +1491,7 @@ namespace eval poImgdiff {
         update
 
         set optStr [poImgType GetOptByFmt $fmtStr "write"]
-        $photoId write $imgName -format "$fmtStr $optStr"
+        $photoId write $imgName -format [list $fmtStr {*}$optStr]
         $sPo(left)  config -cursor crosshair
         $sPo(right) config -cursor crosshair
     }
@@ -1720,8 +1779,8 @@ namespace eval poImgdiff {
         set px [expr {int([$canvasId canvasx $x] / $sPo($canvasId,zoomFactor))}]
         set py [expr {int([$canvasId canvasy $y] / $sPo($canvasId,zoomFactor))}]
 
-        set w [poImgDict GetWidth  sPo(left,rawDict)]
-        set h [poImgDict GetHeight sPo(left,rawDict)]
+        set w [pawt GetImageWidth  sPo(left,rawDict)]
+        set h [pawt GetImageHeight sPo(left,rawDict)]
         if { $px >= 0 && $py >= 0 && $px < $w && $py < $h } {
             set sPo(curPos,x) $px
             if { [poImgAppearance GetRowOrderCount] eq "TopDown" } {
@@ -1730,8 +1789,8 @@ namespace eval poImgdiff {
                 set sPo(curPos,y) [expr {$h - $py - 1}]
             }
 
-            set sPo(diffCol,raw,left)  [poImgDict GetPixelValueAsString sPo(left,rawDict)  $px $py $sPo(diff,raw,precision)]
-            set sPo(diffCol,raw,right) [poImgDict GetPixelValueAsString sPo(right,rawDict) $px $py $sPo(diff,raw,precision)]
+            set sPo(diffCol,raw,left)  [pawt GetImagePixelAsString sPo(left,rawDict)  $px $py $sPo(diff,raw,precision)]
+            set sPo(diffCol,raw,right) [pawt GetImagePixelAsString sPo(right,rawDict) $px $py $sPo(diff,raw,precision)]
         } else {
             ClearRawDiffPixelValue
         }
@@ -1739,6 +1798,7 @@ namespace eval poImgdiff {
 
     proc DiffRawImages { canvasId photoId phSave } {
         variable sPo
+        variable ns
 
         if { [info commands CoroDiffImages] eq "CoroDiffImages" } {
             return false
@@ -1754,12 +1814,12 @@ namespace eval poImgdiff {
         } else {
             set photoIdParam ""
         }
-        coroutine CoroDiffImages poImgDict::DiffImages $sPo(left,rawDict) $sPo(right,rawDict) \
-                                 $sPo(diff,raw,threshold) $photoIdParam $sPo(adjustColor)
+        coroutine CoroDiffImages pawt::DiffImages ${ns}::sPo(left,rawDict) ${ns}::sPo(right,rawDict) \
+                                 -threshold $sPo(diff,raw,threshold) -photo $photoIdParam -markcolor $sPo(adjustColor)
         while { true } {
             set retVal [catch {CoroDiffImages} yieldList]
             if { $retVal != 0 } {
-                # Error occured in poImgDict::DiffImages.
+                # Error occured in pawt::DiffImages.
                 break
             }
             if { $sPo(stopJob) } {
@@ -1794,7 +1854,7 @@ namespace eval poImgdiff {
     proc ConfigureRawValWidgets {} {
         variable sPo
 
-        set w [expr { $sPo(diff,raw,precision) + 4 }]
+        set w [expr { $sPo(diff,raw,precision) + 5 }]
         if { [info exists sPo(diff,raw,leftValWidget)] && [winfo exists $sPo(diff,raw,leftValWidget)] } {
             $sPo(diff,raw,leftValWidget)  configure -width $w
             $sPo(diff,raw,rightValWidget) configure -width $w
@@ -1814,8 +1874,8 @@ namespace eval poImgdiff {
             return
         }
 
-        if { [poImgDict GetPixelSize sPo(left,rawDict)] == 1 && \
-             [poImgDict GetPixelSize sPo(right,rawDict)] == 1 } {
+        if { [pawt GetImagePixelSize sPo(left,rawDict)] == 1 && \
+             [pawt GetImagePixelSize sPo(right,rawDict)] == 1 } {
             ShowDiffImg
             return
         }
@@ -2043,7 +2103,7 @@ namespace eval poImgdiff {
 
         if { $img(left,width)  != $img(right,width) || \
              $img(left,height) != $img(right,height) } {
-            if { [poApps HavePkg "poImg"] } {
+            if { [poMisc HavePkg "poImg"] } {
                 tk_messageBox -type ok -icon warning -title "Warning" -message \
                     "Images differ in size. Images will be aligned at bottom-left to produce difference image."
             } else {
@@ -2273,8 +2333,9 @@ namespace eval poImgdiff {
         bind $tw <Control-w> "${ns}::CleanUp $tw $photoId $phSave"
         wm protocol $tw WM_DELETE_WINDOW "${ns}::CleanUp $tw $photoId $phSave"
         bind $tw <KeyPress-Escape> "${ns}::CleanUp $tw $photoId $phSave"
-        $canvasId bind $canvasId <Motion> "${ns}::PrintDiffPixelValue $canvasId $photoId %x %y"
-        $canvasId bind $canvasId <Leave>  "${ns}::ClearDiffPixelValue"
+        $canvasId bind $canvasId <Motion>   "${ns}::PrintDiffPixelValue $canvasId $photoId %x %y false"
+        $canvasId bind $canvasId <Button-1> "${ns}::PrintDiffPixelValue $canvasId $photoId %x %y true"
+        $canvasId bind $canvasId <Leave>    "${ns}::ClearDiffPixelValue"
         AdjustImg $canvasId $phSave $photoId
         UpdateHistoLines $diffHisto
     }
@@ -2338,23 +2399,23 @@ namespace eval poImgdiff {
         append msg "  On Windows the exit status is stored in ERRORLEVEL.\n"
         append msg "\n"
         append msg "Options:\n"
-        append msg "--showdiff        : Show difference image after startup.\n"
-        append msg "--rawdiff         : If running in batch mode, compare 16-bit or 32-bit RAW images.\n"
-        append msg "                    Note, that options --savediff, --savehist and --poImg are\n"
-        append msg "                    not effective with this option.\n"
-        append msg "--threshold <int> : If running in batch mode, specify the threshold\n"
-        append msg "                    for comparing images.\n"
-        append msg "                    Default: 0.\n"
-        append msg "--savediff <file> : If running in batch mode, save the calculated\n"
-        append msg "                    difference image in specified file.\n"
-        append msg "                    Default: No.\n"
-        append msg "--savehist <file> : If running in batch mode, save the histograms of the\n"
-        append msg "                    input and the difference images in specified CSV file.\n"
-        append msg "                    Default: No.\n"
-        append msg "--poimg           : If running in batch mode, load the images with the\n"
-        append msg "                    poImg extension. This is faster then using the TkImg\n"
-        append msg "                    parsers and saves memory.\n"
-        append msg "                    Available only for Targa and SGI images.\n"
+        append msg "--showdiff         : Show difference image after startup.\n"
+        append msg "--rawdiff          : If using batch mode, compare 16-bit or 32-bit RAW images.\n"
+        append msg "                     Note, that options \"--savediff\", \"--savehist\" and \"--poImg\"\n"
+        append msg "                     are not effective with this option.\n"
+        append msg "--threshold <int>  : If using batch mode, specify the threshold\n"
+        append msg "                     for comparing images.\n"
+        append msg "                     Default: 0.\n"
+        append msg "--savediff <string>: If using batch mode, save the calculated\n"
+        append msg "                     difference image in specified file.\n"
+        append msg "                     Default: No.\n"
+        append msg "--savehist <string>: If using batch mode, save the histograms of the\n"
+        append msg "                     input and the difference images in specified CSV file.\n"
+        append msg "                     Default: No.\n"
+        append msg "--poimg            : If using batch mode, load the images with the\n"
+        append msg "                     poImg extension. This is faster then using the TkImg\n"
+        append msg "                     parsers and saves memory.\n"
+        append msg "                     Available only for Targa and SGI images.\n"
         return $msg
     }
 
@@ -2372,12 +2433,6 @@ namespace eval poImgdiff {
         if { [info exists sPo(StatusWidget)] } {
             poWin WriteStatusMsg $sPo(StatusWidget) $str $icon
         }
-    }
-
-    proc GetInitString {} {
-        variable sPo
-
-        return $sPo(initStr)
     }
 
     proc LoadSettings { cfgDir } {
@@ -2405,7 +2460,7 @@ namespace eval poImgdiff {
 
         SetZoomParams 1 1.00
 
-        SetInfoType "file"
+        SetShowImageTab 1
 
         SetDiffOnStartup 0
 
@@ -2419,9 +2474,11 @@ namespace eval poImgdiff {
         set cfgFile [file normalize [poCfgFile GetCfgFilename $sPo(appName) $cfgDir]]
         if { [poMisc IsReadableFile $cfgFile] } {
             set sPo(initStr) "Settings loaded from file $cfgFile"
+            set sPo(initType) "Ok"
             source $cfgFile
         } else {
-            set sPo(initStr) "No settings file found. Using default values."
+            set sPo(initStr) "No settings file \"$cfgFile\" found. Using default values."
+            set sPo(initType) "Warning"
         }
         set sPo(cfgDir) $cfgDir
     }
@@ -2462,7 +2519,7 @@ namespace eval poImgdiff {
 
             PrintCmd $fp "ZoomParams"
 
-            PrintCmd $fp "InfoType"
+            PrintCmd $fp "ShowImageTab"
 
             PrintCmd $fp "DiffOnStartup"
 
@@ -2502,6 +2559,10 @@ namespace eval poImgdiff {
     proc CloseAppWindow {} {
         variable sPo
 
+        if { ! [info exists sPo(tw)] || ! [winfo exists $sPo(tw)] } {
+            return
+        }
+
         if { [poApps GetAutosaveOnExit] } {
             SaveSettings
         }
@@ -2521,7 +2582,6 @@ namespace eval poImgdiff {
     }
 
     proc ExitApp {} {
-        CloseAppWindow
         poApps ExitApp
     }
 
@@ -2560,14 +2620,16 @@ namespace eval poImgdiff {
             }
             poWatch Reset batchTimer
             if { $sPo(optRawDiff) } {
-                if { [poType IsImage $imgFile "flir"] } {
-                    set img($side) [poFlirParse ReadImageFile $imgFile]
+                if { [poType IsImage $imgFile "raw"] } {
+                    set img($side) [pawt::raw::ReadImageFile $imgFile]
+                } elseif { [poType IsImage $imgFile "flir"] } {
+                    set img($side) [pawt::flir::ReadImageFile $imgFile]
+                } elseif { [poType IsImage $imgFile "fits"] } {
+                    set img($side) [pawt::fits::ReadImageFile $imgFile]
                 } elseif { [poType IsImage $imgFile "ppm"] } {
-                    set img($side) [poPpmParse ReadImageFile $imgFile]
-                } elseif { [poType IsImage $imgFile "raw"] } {
-                    set img($side) [poRawParse ReadImageFile $imgFile]
+                    set img($side) [pawt::ppm::ReadImageFile $imgFile]
                 } else {
-                    puts "\nFile $imgFile is not a RAW, FLIR or PPM image file."
+                    puts "\nFile $imgFile is not a RAW, FLIR, FITS or PPM image file."
                     return 5
                 }
             } elseif { $sPo(optUsePoImg) } {
@@ -2581,21 +2643,32 @@ namespace eval poImgdiff {
             } else {
                 set retVal [catch {poImgMisc LoadImg $imgFile} imgDict]
                 set readTime($side) [poWatch Lookup batchTimer]
-                if { $retVal == 0 } {
-                    set phImg [dict get $imgDict phImg]
-                    set poImg [dict get $imgDict poImg]
-                    if { $poImg ne "" } {
-                        set img($side) $poImg
-                    } else {
-                        set img($side) [poImage NewImageFromPhoto $phImg]
-                        set copyTime($side) [expr [poWatch Lookup batchTimer] - $readTime($side)]
-                    }
-                    image delete $phImg
+                if { $retVal != 0 } {
+                    puts "\n$imgDict"
+                    return 5
                 }
+                set phImg [dict get $imgDict phImg]
+                set poImg [dict get $imgDict poImg]
+                if { $poImg ne "" } {
+                    set img($side) $poImg
+                } else {
+                    set img($side) [poImage NewImageFromPhoto $phImg]
+                    set copyTime($side) [expr [poWatch Lookup batchTimer] - $readTime($side)]
+                }
+                image delete $phImg
             }
             if { [poApps GetVerbose] } {
                 puts [format " (Time: %.2f seconds)" [poWatch Lookup batchTimer]]
             }
+        }
+
+        if { ! [info exists img(left)] } {
+            puts "\nCould not read an image for left side."
+            return 5
+        }
+        if { ! [info exists img(right)] } {
+            puts "\nCould not read an image for right side."
+            return 5
         }
 
         # Generate the difference image and calculate number of differing pixels.
@@ -2605,8 +2678,8 @@ namespace eval poImgdiff {
                 puts -nonewline "Calculating RAW difference image with threshold $sPo(optThresh) ..." ; flush stdout
             }
             poWatch Reset batchTimer
-            set retVal [catch {poImgDict DiffImages $img(left) $img(right) \
-                               $sPo(optThresh)} numDiffPixels]
+            set retVal [catch {pawt DiffImages img(left) img(right) \
+                               -threshold $sPo(optThresh)} numDiffPixels]
             if { $retVal != 0 } {
                 puts "\n$numDiffPixels"
                 return 6
@@ -2692,7 +2765,7 @@ namespace eval poImgdiff {
                         poImgUtil DeleteImg $img(right)
                         set phImg [image create photo]
                         $img(left) AsPhoto $phImg [list $::RED $::GREEN $::BLUE]
-                        $phImg write $sPo(optSaveDiff) -format "$fmtStr $optStr"
+                        $phImg write $sPo(optSaveDiff) -format [list $fmtStr {*}$optStr]
                         image delete $phImg
                     }
                     if { [poApps GetVerbose] } {
@@ -2778,7 +2851,7 @@ namespace eval poImgdiff {
         }
         ShowDiffImgOnStartup
 
-        WriteInfoStr [GetInitString]
+        WriteInfoStr $sPo(initStr) $sPo(initType)
     }
 
     proc IsOpen {} {

@@ -1,4 +1,4 @@
-# Copyright: 2007-2020 Paul Obermeier (obermeier@poSoft.de)
+# Copyright: 2007-2023 Paul Obermeier (obermeier@poSoft.de)
 # Distributed under BSD license.
 
 namespace eval poCsv {

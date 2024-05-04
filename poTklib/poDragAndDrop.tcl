@@ -1,5 +1,5 @@
 # Module:         poDragAndDrop
-# Copyright:      Paul Obermeier 2017-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2017-2023 / paul@poSoft.de
 # First Version:  2017 / 01 / 29
 #
 # Distributed under BSD license.
@@ -16,10 +16,7 @@ namespace eval poDragAndDrop {
     namespace export AddTtkBinding
 
     proc Init {} {
-        variable sHaveTkDnd
-
-        set retVal [catch {package require tkdnd} version]
-        set sHaveTkDnd [expr ! $retVal]
+        set retVal [catch { package require "tkdnd" } version]
     }
 
     proc _SetCanvasState { w onOff } {
@@ -53,9 +50,8 @@ namespace eval poDragAndDrop {
 
     proc AddCanvasBinding { w callback } {
         variable ns
-        variable sHaveTkDnd
 
-        if { $sHaveTkDnd } {
+        if { [poMisc HavePkg "tkdnd"] } {
             tkdnd::drop_target register $w DND_Files
 
             bind $w <<DropEnter>> "${ns}::_SetCanvasState $w true"
@@ -67,9 +63,8 @@ namespace eval poDragAndDrop {
 
     proc AddTtkBinding { w callback } {
         variable ns
-        variable sHaveTkDnd
 
-        if { $sHaveTkDnd } {
+        if { [poMisc HavePkg "tkdnd"] } {
             tkdnd::drop_target register $w DND_Files
 
             bind $w <<DropEnter>> { %W state  active }

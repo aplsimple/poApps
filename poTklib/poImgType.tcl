@@ -1,5 +1,5 @@
 # Module:         poImgType
-# Copyright:      Paul Obermeier 2001-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2001-2023 / paul@poSoft.de
 # First Version:  2001 / 03 / 01
 #
 # Distributed under BSD license.
@@ -247,6 +247,17 @@ namespace eval poImgType {
                       [list 0 -max       int   32767]] \
                 [list [list ]]
 
+        AddType FITS "FITS Flexible Image Transport System" [list .fit .fits] \
+                [list [list 0 -verbose bool false true false] \
+                      [list 0 -blank      float  0] \
+                      [list 0 -map        enum  minmax none minmax agc] \
+                      [list 0 -gamma      float  1.0] \
+                      [list 0 -min        float -1.0] \
+                      [list 0 -max        float -1.0] \
+                      [list 0 -cutoff     float  3.0] \
+                      [list 0 -saturation float -1.0]] \
+                [list [list ]]
+
         AddType FLIR "FLIR Public Image Format" [list .fpf] \
                 [list [list 0 -verbose    bool  false true false] \
                       [list 0 -printagc   bool  false true false] \
@@ -291,6 +302,11 @@ namespace eval poImgType {
                       [list 0 -xresolution string 0] \
                       [list 0 -yresolution string 0]]
 
+        AddType PDF "Portable Document Format" [list .pdf] \
+                [list [list 0 -index int    0] \
+                      [list 0 -dpi   float 72]] \
+                [list [list ]]
+
         AddType PNG "Portable Network Graphics" [list .png] \
                 [list [list 0 -verbose bool false true false] \
                       [list 0 -matte   bool true  true false] \
@@ -300,7 +316,7 @@ namespace eval poImgType {
                       [list 0 -xresolution string 0] \
                       [list 0 -yresolution string 0]]
 
-        AddType PPM "PPM and PGM" [list .ppm .pgm] \
+        AddType PPM "PPM and PGM" [list .ppm .pgm .pnm] \
                 [list [list 0 -verbose   bool  false true false] \
                       [list 0 -gamma     float 1.0] \
                       [list 0 -min       float 0.0] \
@@ -308,7 +324,7 @@ namespace eval poImgType {
                       [list 0 -scanorder enum  TopDown TopDown BottomUp]] \
                 [list [list 0 -ascii     bool  false true false]]
 
-        AddType POSTSCRIPT "Postscript" [list .ps] \
+        AddType PS "Postscript" [list .ps] \
                 [list [list 0 -index int   0] \
                       [list 0 -zoom  float 1.0]] \
                 [list [list ]]
@@ -317,10 +333,11 @@ namespace eval poImgType {
                 [list [list 1 -useheader  bool  true true false] \
                       [list 0 -verbose    bool  false true false] \
                       [list 0 -printagc   bool  false true false] \
-                      [list 0 -nchan      int   1] \
                       [list 0 -scanorder  enum  TopDown TopDown BottomUp] \
                       [list 0 -byteorder  enum  Intel Intel Motorola] \
-                      [list 0 -pixeltype  enum  byte byte short float] \
+                      [list 0 -pixeltype  enum  byte byte short int float double] \
+                      [list 0 -skipbytes  int   0] \
+                      [list 0 -nchan      int   1] \
                       [list 0 -width      int   128] \
                       [list 0 -height     int   128] \
                       [list 0 -map        enum  minmax none minmax agc] \
@@ -372,7 +389,8 @@ namespace eval poImgType {
                       [list 0 -byteorder   enum none none bigendian littleendian]]
 
         AddType XBM "X Windows Bitmap" [list .xbm] \
-                [list [list ]] \
+                [list [list 0 -foreground string "#000000"] \
+                      [list 0 -background string ""]] \
                 [list [list ]]
 
         AddType XPM "X Windows Pixmap" [list .xpm] \
@@ -507,13 +525,16 @@ namespace eval poImgType {
             set optName [lindex $opt 1]
             set useOpt  $sPo($fmt,$mode,$optName,useOpt)
             set optVal  $sPo($fmt,$mode,$optName,optVal)
+            if { $optVal eq "" } {
+                set optVal "\"\""
+            }
             if { $useOpt } {
                 append optStr " $optName $optVal"
             }
         }
         return $optStr
     }
-
+  
     proc UpdateTable { tableId } {
         variable sPo
         variable curType

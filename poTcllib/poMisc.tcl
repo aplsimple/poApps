@@ -1,5 +1,5 @@
 # Module:         poMisc
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 01 / 23
 #
 # Distributed under BSD license.
@@ -12,13 +12,17 @@ namespace eval poMisc {
     namespace ensemble create
 
     namespace export Init
+    namespace export HavePkg GetPkgVersion
     namespace export HaveTcl87OrNewer
+    namespace export HaveTcl9OrNewer
     namespace export SearchInFile ReplaceInFile SearchReplaceInFile
     namespace export FileSizeCompare FileDateCompare FileContentCompare
+    namespace export GetCmpMode GetCmpModeString
     namespace export FileIdent
     namespace export FileCat FileConcat FileSplit
     namespace export FileConvert
-    namespace export DiskUsage GetDrives
+    namespace export GetNetworkFolders GetNetworkDrives GetDrives
+    namespace export DiskUsage
     namespace export GetFileInfoLabels FileInfo
     namespace export FormatByteSize
     namespace export FileCutPath
@@ -26,7 +30,7 @@ namespace eval poMisc {
     namespace export FileSlashName
     namespace export HexDump HexDumpToFile
     namespace export CheckMatchList
-    namespace export QuoteSpaces QuoteRegexpChars QuoteSearchPattern
+    namespace export QuoteTilde QuoteSpaces QuoteRegexpChars QuoteSearchPattern
     namespace export CompactSpaces SplitMultSpaces
     namespace export AddNewlines
     namespace export Square IsSquare Abs Min Max
@@ -45,6 +49,7 @@ namespace eval poMisc {
     namespace export IsCaseSensitiveFileSystem 
     namespace export CountDirsAndFiles
     namespace export GetDirCont GetDirList GetDirsAndFiles
+    namespace export Pack Unpack
     namespace export PrintMachineInfo PrintTclInfo
     namespace export DecToRgb RgbToDec
     namespace export Bitset GetBitsetIndices
@@ -60,8 +65,9 @@ namespace eval poMisc {
         variable randomSeed
         variable haveTcl84AndUp
         variable haveTcl87AndUp
+        variable haveTcl9AndUp
 
-        set PI 3.1415926535
+        set PI 3.14159265358979323846
         set randomSeed 1.0
 
         # Check if Tcl version is greater than 8.4. glob semantics has changed slightly with 8.4.
@@ -69,12 +75,42 @@ namespace eval poMisc {
 
         # Tcl must be greater or equal to 8.7 to have -text option with progressbar.
         set haveTcl87AndUp [expr [package vcompare "8.7" [info tclversion]] <= 0]
+
+        # Tcl must be greater or equal to 9.0 to have "file tildeexpand" as replacement to ~.
+        set haveTcl9AndUp [expr [package vcompare "9.0" [info tclversion]] <= 0]
+
+        # Require packages, which are needed by some of the procedures.
+        set retVal [catch { package require "tar" } version]
+    }
+
+    proc HavePkg { pkgName } {
+        set retVal [catch {package present $pkgName} versionStr]
+        if { $retVal != 0 } {
+            return false
+        } else {
+            return true
+        }
+    } 
+
+    proc GetPkgVersion { pkgName } {
+        set retVal [catch {package present $pkgName} versionStr]
+        if { $retVal != 0 } {
+            return "0.0.0"
+        } else {
+            return $versionStr
+        }
     }
 
     proc HaveTcl87OrNewer {} {
         variable haveTcl87AndUp
 
         return $haveTcl87AndUp
+    }
+
+    proc HaveTcl9OrNewer {} {
+        variable haveTcl9AndUp
+
+        return $haveTcl9AndUp
     }
 
     proc FileSlashName { fileName } {
@@ -230,26 +266,103 @@ namespace eval poMisc {
         }
     }
 
-    proc GetDrives {} {
-        global tcl_platform
+    proc GetNetworkFolders { networkDrive } {
+        set folderList [list]
 
-        set drives [list]
-        switch $tcl_platform(platform) {
-            windows {
-                set drives [list [list A:/]]
-                foreach drive \
-                 [list B C D E F G H I J K L M N O P Q R S T U V W X Y Z] {
-                     if {[catch {file stat ${drive}: dummy}] == 0} {
-                         lappend drives [list [format "%s:/" $drive]]
-                     }
+        set CSIDL_NETWORK 18
+        set shell [twapi::comobj Shell.Application]
+        set network [$shell NameSpace $CSIDL_NETWORK]
+
+        set networkItems    [$network Items]
+        set numNetworkItems [$networkItems Count]
+        set found false
+        for { set i 0 } { $i < $numNetworkItems } { incr i } {
+            set networkItem [$networkItems Item $i]
+            if { [string map { "\\" "/" } [$networkItem Path]] eq $networkDrive } {
+                set folderObj [$networkItem GetFolder]
+                set folderItems [$folderObj Items]
+                set numFolderItems [$folderItems Count]
+                for { set f 0 } { $f < $numFolderItems } { incr f } {
+                    set folderItem [$folderItems Item $f]
+                    lappend folderList [string map { "\\" "/" } [$folderItem Path]]
+                    $folderItem -destroy
                 }
-                # OPA TODO Add twapi::get_shares
+                $folderItems -destroy
+                $folderObj   -destroy
+                set found true
             }
-            default {
-                set drives [file volume]
+            $networkItem -destroy
+            if { $found } {
+                break
             }
         }
-        return $drives
+        $networkItems -destroy
+        $network      -destroy
+        $shell       -destroy
+        return $folderList
+    }
+
+    proc GetNetworkDrives {} {
+        set driveList [list]
+
+        set CSIDL_NETWORK 18
+        set shell [twapi::comobj Shell.Application]
+        set network [$shell NameSpace $CSIDL_NETWORK]
+
+        set networkItems [$network Items]
+        set numNetworkItems [$networkItems Count]
+        for { set i 0 } { $i < $numNetworkItems } { incr i } {
+            set networkItem [$networkItems Item $i]
+            if { [$networkItem IsFolder] && [string first "\\\\" [$networkItem Path]] == 0 } {
+                lappend driveList [string map { "\\" "/" } [$networkItem Path]]
+            }
+            $networkItem -destroy
+        }
+        $networkItems -destroy
+        $network      -destroy
+        $shell        -destroy
+        return $driveList
+    }
+
+    proc GetDrives { args } {
+        global tcl_platform
+
+        set opts [dict create \
+            -networkdrives false \
+        ]
+
+        foreach { key value } $args {
+            if { [dict exists $opts $key] } {
+                if { $value eq "" } {
+                    error "GetDrives: No value specified for key \"$key\"."
+                }
+                dict set opts $key $value
+            } else {
+                error "GetDrives: Unknown option \"$key\" specified."
+            }
+        }
+
+        set driveList [list]
+        switch $tcl_platform(platform) {
+            windows {
+                foreach drive [file volumes] {
+                    if {[string match "//zipfs*" $drive] } {
+                        continue
+                    } else {
+                        lappend driveList $drive
+                    }
+                }
+                if { [dict get $opts "-networkdrives"] } {
+                    foreach networkDrive [GetNetworkDrives] {
+                        lappend driveList [list $networkDrive]
+                    }
+                }
+            }
+            default {
+                set driveList [file volumes]
+            }
+        }
+        return $driveList
     }
 
     proc DiskUsage { dirName { countHidden true } } {
@@ -477,10 +590,46 @@ namespace eval poMisc {
         return $retVal
     }
 
+    proc GetCmpMode { modeString } {
+        # cmpMode 0: Compare files by size only
+        # cmpMode 1: Compare files by date only
+        # cmpMode 2: Compare files by content
+        # cmpMode 3: Compare files by existence
+
+        set mode [string tolower $modeString]
+        if { $mode eq "size" } {
+            return 0
+        } elseif { $mode eq "date" } {
+            return 1
+        } elseif { $mode eq "content" } {
+            return 2
+        } elseif { $mode eq "exist" } {
+            return 3
+        } else {
+            error "GetCmpMode: Unknown compare mode string $modeString"
+        }
+    }
+
+    proc GetCmpModeString { mode } {
+        if { $mode == 0 } {
+            return "size"
+        } elseif { $mode == 1 } {
+            return "date"
+        } elseif { $mode == 2 } {
+            return "content"
+        } elseif { $mode == 3 } {
+            return "exist"
+        } else {
+            error "GetCmpModeString: Unknown compare mode $mode"
+        }
+    }
+
     proc FileIdent { f1 f2 { cmpMode 2 } { ignEOL 0 } { ignOneHour 0 } { bufSize 2048 } } {
         # cmpMode 0: Compare files by size only
         # cmpMode 1: Compare files by date only
         # cmpMode 2: Compare files by content
+        # cmpMode 3: Compare files by existence
+
         if { ! [file isfile $f1] } {
             error "Parameter $f1 is not a file"
         }
@@ -492,8 +641,12 @@ namespace eval poMisc {
             return [FileSizeCompare $f1 $f2]
         } elseif { $cmpMode == 1 } {
             return [FileDateCompare $f1 $f2 $ignOneHour]
-        } else {
+        } elseif { $cmpMode == 2 } {
             return [FileContentCompare $f1 $f2 $ignEOL $bufSize]
+        } elseif { $cmpMode == 3 } {
+            return true
+        } else {
+            error "FileIdent: Unknown compare mode $cmpMode"
         }
     }
 
@@ -671,6 +824,16 @@ namespace eval poMisc {
         HexDump $binFile $hexFp
 
         close $hexFp
+    }
+
+    proc QuoteTilde { fileName } {
+        if { ! [HaveTcl9OrNewer] } {
+            if { [string index $fileName 0] eq "~" } {
+                # File starts with tilde. This will generate errors "user ~XXX does not exist"
+                return [format "./%s" $fileName]
+            }
+        }
+        return $fileName
     }
 
     proc QuoteSpaces { str } {
@@ -907,7 +1070,7 @@ namespace eval poMisc {
         switch $tcl_platform(platform) {
             windows {
                 # Load the registry package
-                package require registry
+                package require "registry"
 
                 # Define likely registry locations
                 set keys [list \
@@ -939,7 +1102,11 @@ namespace eval poMisc {
     proc GetHomeDir {} {
         global tcl_platform env
 
-        set homeDir "~"
+        if { [HaveTcl9OrNewer] } {
+            set homeDir [file tildeexpand "~"]
+        } else {
+            set homeDir "~"
+        }
         if { ! [file isdirectory $homeDir] } {
             set homeDir ""
         }
@@ -1137,9 +1304,7 @@ namespace eval poMisc {
                 }
             }
             foreach dir $relDirList {
-                if { [string index $dir 0] eq "~" } {
-                    set dir [format "./%s" $dir]
-                }
+                set dir [poMisc QuoteTilde $dir]
                 set absName [file join $dirName $dir]
                 lappend absDirList $absName
             }
@@ -1187,6 +1352,42 @@ namespace eval poMisc {
         cd $curDir
 
         return [list $absDirList $relFileList]
+    }
+
+    proc Pack { tgzFile level args } {
+        if { [HavePkg "tar"] } {
+            set catchVal [catch {open $tgzFile wb} fp]
+            if { $catchVal != 0 } {
+                error "Could not open file \"$tgzFile\" for writing."
+            }
+            if { $level < 1 } {
+                tar::create $fp $args -chan
+            } else {
+                zlib push gzip $fp -level $level
+                tar::create $fp $args -chan
+            }
+            close $fp
+        } else {
+            error "Pack: Package \"tar\" not available."
+        }
+    }
+
+    proc Unpack { tgzFile level args } {
+        if { [HavePkg "tar"] } {
+            set catchVal [catch {open $tgzFile rb} fp]
+            if { $catchVal != 0 } {
+                error "Could not open file \"$tgzFile\" for reading."
+            }
+            if { $level < 1 } {
+                tar::untar $fp
+            } else {
+                zlib push gunzip $fp
+                tar::untar $fp -chan
+            }
+            close $fp
+        } else {
+            error "Unpack: Package \"tar\" not available."
+        }
     }
 
     proc PrintMachineInfo {} {
@@ -1369,9 +1570,11 @@ namespace eval poMisc {
     }
 
     proc GetExtensions { typeList } {
+        set extList [list]
         foreach elem $typeList {
-            if { [lindex $elem 1] ne "*" } {
-                foreach ext [lindex $elem 1] {
+            set extString [lindex $elem 1]
+            if { $extString ne "*" && $extString ne "*.*" } {
+                foreach ext $extString {
                     lappend extList $ext
                 }
             }
@@ -1380,7 +1583,11 @@ namespace eval poMisc {
     }
 
     proc IsValidExtension { typeList ext } {
-        if { [lsearch -exact -nocase [GetExtensions $typeList] $ext] >= 0 } {
+        set extList [GetExtensions $typeList]
+        if { [llength $extList] == 0 } {
+            return true
+        }
+        if { [lsearch -exact -nocase $extList $ext] >= 0 } {
             return true
         } else {
             return false

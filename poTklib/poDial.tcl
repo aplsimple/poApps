@@ -1,5 +1,5 @@
 # Module:         poDial
-# Copyright:      Paul Obermeier 2016-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2016-2023 / paul@poSoft.de
 # First Version:  2016 / 05 / 03
 #
 # Distributed under BSD license.

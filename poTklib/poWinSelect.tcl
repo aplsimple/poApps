@@ -1,5 +1,5 @@
 # Module:         poWinSelect
-# Copyright:      Paul Obermeier 2009-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2009-2023 / paul@poSoft.de
 # First Version:  2009 / 12 / 15
 #
 # Distributed under BSD license.
@@ -64,7 +64,7 @@ namespace eval poWinSelect {
             set oldPath [file dirname $oldPath]
             set oldPath [format "%s/" [string trimright $oldPath "/"]]
         }
-        set curPath [$comboId get]
+        set curPath [poMisc QuoteTilde [$comboId get]]
         if { [file pathtype $curPath] eq "absolute" } {
             set fullPath $curPath
         } else {
@@ -211,7 +211,7 @@ namespace eval poWinSelect {
 
     # Internal function to convert directory names to Tcl normalized style.
     proc NormalizeName { fileOrDirName } {
-        set fileOrDirName [file normalize $fileOrDirName]
+        set fileOrDirName [file normalize [string trim $fileOrDirName "\{\}"]]
         if { [file isdirectory $fileOrDirName] } {
             set fileOrDirName [format "%s/" [string trimright $fileOrDirName "/"]]
         }

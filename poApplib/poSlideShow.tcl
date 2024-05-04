@@ -1,5 +1,5 @@
 # Module:         poSlideShow
-# Copyright:      Paul Obermeier 2014-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2014-2023 / paul@poSoft.de
 # First Version:  2014 / 02 / 26
 #
 # Distributed under BSD license.
@@ -15,7 +15,8 @@ namespace eval poSlideShow {
     namespace export Init
     namespace export OpenWin OkWin CancelWin
     namespace export LoadSettings SaveSettings
-    namespace export ShowMainWin ParseCommandLine IsOpen
+    namespace export ShowMainWin CloseAppWindow
+    namespace export ParseCommandLine IsOpen
     namespace export GetUsageMsg
     namespace export GetTextColor GetDisabledColor GetEnabledColor
     namespace export SetInitialFile SetMarkList SetFileMarkList
@@ -176,6 +177,68 @@ namespace eval poSlideShow {
         }
     }
 
+    proc _OpenContextMenu { x y } {
+        variable ns
+        variable sPo
+
+        set w .poSlideShow:contextMenu
+        catch { destroy $w }
+        menu $w -tearoff false -disabledforeground white
+
+        $w add command -label "Close this menu"
+        $w add separator
+        $w add command -label "Leave slideshow (cancel marks)" -command "${ns}::CloseAppWindow false"
+        $w add command -label "Leave slideshow (use marks)"    -command "${ns}::CloseAppWindow true"
+        $w add separator
+        $w add command -label "Show first image"               -command "${ns}::ShowImgByNum 0" 
+        $w add command -label "Load image into poImgView"      -command "${ns}::LoadInImgview"
+        $w add command -label "Rotate left"                    -command "${ns}::RotImg  90" 
+        $w add command -label "Rotate right"                   -command "${ns}::RotImg -90" 
+        $w add separator
+        $w add command -label "Toggle adavance mode"           -command "${ns}::ToggleAdvanceMode"
+        $w add command -label "Toggle scale to fit mode"       -command "${ns}::ToggleScaleToFit" 
+        $w add command -label "Toggle image marking"           -command "${ns}::ToggleMark"
+        $w add command -label "Toggle display of info line"    -command "${ns}::ToggleInfoMsg"
+        $w add command -label "Toggle text colors"             -command "${ns}::ToggleTextColor" 
+        $w add command -label "Toggle shortcut help"           -command "${ns}::ToggleOnScreenHelp"
+
+        tk_popup $w $x $y
+    }
+
+    proc _SetMousePos { x y } {
+        variable sPo
+
+        set sPo(mouse,x) $x
+        set sPo(mouse,y) $y
+    }
+
+    proc _CalcGesture { x y } {
+        variable sPo
+
+        set dirx [expr { $x - $sPo(mouse,x) }]
+        set diry [expr { $y - $sPo(mouse,y) }]
+
+        if { [poMisc Abs $dirx] < 10 && [poMisc Abs $diry] < 10 } {
+            _OpenContextMenu $x $y
+            return
+        }
+
+        if { [poMisc Abs $diry] > 50 } {
+            if { $diry > 0 } {
+                DecrDuration 1
+            } else {
+                IncrDuration 1
+            }
+        }
+
+        set factor [poMisc Max 1 [expr [poMisc Abs $dirx] / 200]]
+        if { $dirx < 0 } {
+            ShowPrevImg $factor
+        } else {
+            ShowNextImg $factor
+        }
+    }
+
     proc ShowMainWin {} {
         variable ns
         variable sPo
@@ -202,6 +265,10 @@ namespace eval poSlideShow {
         set sPo(canvId) $canvId
         canvas $canvId -background $sPo(color,disabled) -borderwidth 0
         pack $canvId -fill both -expand 1 -side left
+
+        # Gestures for stepping through images.
+        bind $sPo(tw) <ButtonPress-1>   "${ns}::_SetMousePos %x %y"
+        bind $sPo(tw) <ButtonRelease-1> "${ns}::_CalcGesture %x %y"
 
         # Keys for stepping through images.
         bind $sPo(tw) <Left>        "${ns}::ShowPrevImg"
@@ -370,10 +437,10 @@ namespace eval poSlideShow {
         append infoStr " Date: $date"
         if { $phImg ne "" } {
             append infoStr " Pixel: $phWidth x $phHeight"
+            append infoStr [format " Zoom: %.0f%%" [expr 100.0 / $zoomFact]]
         } else {
-            append infoStr " No valid image"
+            append infoStr " (No valid image)"
         }
-        append infoStr [format " Zoom: %.0f%%" [expr 100.0 / $zoomFact]]
         set sPo(imgInfoStr) $infoStr
         if { [GetShowInfoMode] } {
             UpdateInfoMsg $canvId
@@ -486,9 +553,14 @@ namespace eval poSlideShow {
 
     proc DelayedReadImg {} {
         variable sPo
+        variable ns
 
         AdvanceCurImgNum
         ReadImg
+        incr sPo(imgCount)
+        if { $sPo(once) && $sPo(imgCount) >= [llength $sPo(fileList)] } {
+            ${ns}::ExitApp
+        }
     }
 
     proc ShowImgByNum { imgNum } {
@@ -529,19 +601,19 @@ namespace eval poSlideShow {
         }
     }
 
-    proc DecrDuration {} {
+    proc DecrDuration { { incrDur 0.5 } } {
         variable sPo
 
-        IncrSlideShowDuration -0.5
+        IncrSlideShowDuration [expr -1.0 * $incrDur]
         if { ! [info exists sPo(afterId)] } {
             ReadImg
         }
     }
 
-    proc IncrDuration {} {
+    proc IncrDuration { { incrDur 0.5 } } {
         variable sPo
 
-        IncrSlideShowDuration 0.5
+        IncrSlideShowDuration $incrDur
         if { ! [info exists sPo(afterId)] } {
             ReadImg
         }
@@ -684,7 +756,7 @@ namespace eval poSlideShow {
         append msg "0 .. 9     : Set slide show duration to specified seconds.\n"
         append msg "s          : Toggle automatic/manual advance mode.\n"
         append msg "v          : Load current image into poImgview.\n"
-        append msg "l/r        : Rotate current image by 90° to the left or right.\n"
+        append msg "l/r        : Rotate current image by 90Â° to the left or right.\n"
         append msg "Space      : Toggle image marking.\n"
         append msg "f          : Toggle scale to fit mode.\n"
         append msg "c          : Switch text colors: white, blue, red, yellow.\n"
@@ -709,19 +781,19 @@ namespace eval poSlideShow {
         append msg "as a slide show.\n"
         append msg "\n"
         append msg "Options:\n"
-        append msg "--duration <int>  : Specify the display duration of each image in seconds.\n"
-        append msg "                    Current setting: [GetSlideShowDuration].\n"
-        append msg "--direction <int> : Set slide show direction.\n"
-        append msg "                    Possible values 1 (forwards) or -1 (backwards).\n"
-        append msg "                    Current setting: [GetSlideShowDirection].\n"
-        append msg "--mode <string>   : Set automatic or manual advance mode.\n"
-        append msg "                    Possible values: \"auto\" or \"manual\".\n"
-        append msg "                    Current setting: \"[GetAdvanceMode]\".\n"
-        append msg "--fit <bool>      : Set ScaleToFit mode on or off.\n"
-        append msg "                    Current setting: [GetScaleToFitMode].\n"
-        append msg "--showinfo <bool> : Set ShowImageInfo mode on or off.\n"
-        append msg "                    Current setting: [GetShowInfoMode].\n"
-        append msg "--showlogo <file> : Add specified image file as logo in the top-right corner.\n"
+        append msg "--duration <int>   : Display duration of each image in seconds.\n"
+        append msg "                     Current setting: [GetSlideShowDuration].\n"
+        append msg "--direction <int>  : Slide show direction.\n"
+        append msg "                     Possible values 1 (forwards) or -1 (backwards).\n"
+        append msg "                     Current setting: [GetSlideShowDirection].\n"
+        append msg "--mode <string>    : Slide advance mode.\n"
+        append msg "                     Possible values: \"auto\", \once\" or \"manual\".\n"
+        append msg "                     Current setting: \"[GetAdvanceMode]\".\n"
+        append msg "--fit <bool>       : Scale image to fit screen size.\n"
+        append msg "                     Current setting: [GetScaleToFitMode].\n"
+        append msg "--showinfo <bool>  : Show image information.\n"
+        append msg "                     Current setting: [GetShowInfoMode].\n"
+        append msg "--showlogo <string>: Add specified image file as logo in the top-right corner.\n"
         append msg "\n"
         append msg "Shortcuts:\n"
         append msg [GetShortcutMsg false]
@@ -750,7 +822,7 @@ namespace eval poSlideShow {
             set sPo(initStr) "Settings loaded from file $cfgFile"
             source $cfgFile
         } else {
-            set sPo(initStr) "No settings file found. Using default values."
+            set sPo(initStr) "No settings file \"$cfgFile\" found. Using default values."
         }
         set sPo(cfgDir) $cfgDir
     }
@@ -785,6 +857,10 @@ namespace eval poSlideShow {
     proc CloseAppWindow { { returnFlag false } } {
         variable sPo
 
+       if { ! [info exists sPo(tw)] || ! [winfo exists $sPo(tw)] } {
+            return
+        }
+
         if { [info exists sPo(afterId)] } {
             after cancel $sPo(afterId)
             unset sPo(afterId)
@@ -808,7 +884,6 @@ namespace eval poSlideShow {
     }
 
     proc ExitApp {} {
-        CloseAppWindow
         poApps ExitApp
     }
 
@@ -1001,6 +1076,7 @@ namespace eval poSlideShow {
 
         set sPo(fileList) [list]
         set sPo(fileMark) [list]
+        set sPo(once)     false
         set curArg 0
         while { $curArg < [llength $argList] } {
             set curParam [lindex $argList $curArg]
@@ -1015,7 +1091,12 @@ namespace eval poSlideShow {
                     SetSlideShowDirection [expr [lindex $argList $curArg] > 0? 1: -1]
                 } elseif { $curOpt eq "mode" } {
                     incr curArg
-                    SetAdvanceMode [lindex $argList $curArg]
+                    set advanceMode [lindex $argList $curArg]
+                    if { $advanceMode eq "once" } {
+                        set advanceMode "auto"
+                        set sPo(once) true
+                    }
+                    SetAdvanceMode $advanceMode
                 } elseif { $curOpt eq "fit" } {
                     incr curArg
                     SetScaleToFitMode [expr [lindex $argList $curArg]? 1: 0]
@@ -1057,6 +1138,7 @@ namespace eval poSlideShow {
         }
         ShowInfoMsg $sPo(canvId) 50 50 ""
         set sPo(curImgNum) 0
+        set sPo(imgCount)  0
         if { [llength $sPo(fileList)] > 0 } {
             ReadImg
             AddLogo $sPo(canvId)

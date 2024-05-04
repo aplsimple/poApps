@@ -394,31 +394,13 @@ if {[string first "color" [winfo visual $w(tw)]] >= 0} {
 set opts(textopt) "$opts(textopt) -wrap none"
 
 # OPA >>>
-proc CleanTclkitDirs {} {
-    global env
-
-    if { $::tcl_platform(platform) ne "windows" } {
-        return
-    }
-    if { ! [info exists starkit::topdir] } {
-        return
-    }
-    foreach name { TMP TEMP TMPDIR } {
-        if { ! [info exists env($name)] } {
-            continue
-        }
-        set tmpDir $env($name)
-        set dirList [glob -nocomplain -types d -directory -- $tmpDir \
-            "TCL\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]"]
-        foreach dir $dirList {
-            catch { file delete -force $dir }
-        }
-    }
-}
-
-proc CloseAppWindow {} {
+proc tkdiff-CloseAppWindow {} {
     global w
     global g
+
+    if { ! [info exists w(tw)] && ! [winfo exists $w(tw)] } {
+        return
+    }
 
     # we don't particularly care if del-tmp fails.
     catch {del-tmp}
@@ -520,12 +502,8 @@ proc do-exit {{returncode {}}} {
     }
 
     # OPA >>>
-    CloseAppWindow
-    CleanTclkitDirs
+    poApps ExitApp $returncode
     # OPA <<<
-
-    # exit with an appropriate return value
-    exit $returncode
 }
 
 ###############################################################################
@@ -2499,6 +2477,7 @@ proc build-popupMenu {} {
     foreach win [list LeftText RightText RightInfo LeftInfo mapCanvas] {
         # OPA >>>
         bind $w($win) <<RightButtonPress>> {show-popupMenu %X %Y}
+        bind $w($win) <Escape> { StopDiff 1 }
         # OPA <<<
     }
 
@@ -3359,7 +3338,7 @@ proc build-menubar {} {
 
     # OPA >>>
     $fileMenu add command -label "Close window" -underline 1 -accelerator "Ctrl+W" \
-      -command CloseAppWindow
+      -command tkdiff-CloseAppWindow
     $fileMenu add command -label "Quit" -underline 1 -accelerator "Ctrl+Q" \
       -command do-exit
     # OPA <<<
@@ -4173,7 +4152,7 @@ proc common-navigation {args} {
         # OPA >>>
 
         bind $widget <Control-w> "
-            CloseAppWindow
+            tkdiff-CloseAppWindow
             break
         "
         bind $widget <Control-q> "
@@ -5513,7 +5492,7 @@ proc build-merge-preview {} {
         -command "do-show-merge 0"
 
     button $win.bottom.mExit -width 8 -text "Exit $g(name)" -underline 0 \
-        -command {exit}
+        -command {do-exit}
 
     # These last two buttons NAMES are later re-cfg'd with "..." appended
     # when g(mergefileset)==0 to signify a file browser popup will occur
@@ -6523,6 +6502,20 @@ proc chk-ancRnge {anclst S E {prev {}}} {
     return $result 
 }
 
+# OPA >>>
+proc StopDiff { { onOff 1 } } {
+    global g
+
+    set g(StopDiff) $onOff
+}
+
+proc UpdateDiffStatus { msg count total } {
+    show-status [format "%s (%3d%% finished)" $msg \
+                [expr {int( 100.0 * $count / $total) }]]
+    update 
+}
+# OPA <<<
+
 ###############################################################################
 # Mark difference regions and build up the combobox
 #   N.B> Be very AWARE of when/why g(diff) .vs. g(DIFF) is used!!!
@@ -6539,7 +6532,6 @@ proc mark-diffs {{rmvrpl {}}} {
     # list is defined by the OPTIONAL "(r)e(m)o(v)e and (r)e(pl)ace" argument
     if {$rmvrpl != {}} {
         set Lpad [set Rpad {}]      ;# (tmps for scheduling Pad-line removal)
-        set hack {}                 ;# Dont need the responsiveness hack ...
         set g(startPhase) 1         ;# ... but RE-suspend "plot-line-info"
         $w(combo) list delete 0 end ;# ComboBox will simply be RE-loaded
 
@@ -6594,27 +6586,21 @@ proc mark-diffs {{rmvrpl {}}} {
             set i [expr {$i - $inject + $j}] ;# readjust i to last mapped index
             set g(DIFF) [lreplace $g(DIFF) [set inject $j] $i {*}$rmvrpl]
         }
-    } else {
-        # Ain't this clever? We want to update the display as soon as we've
-        # marked enough diffs to fill the display so the user will have the
-        # impression we're fast. But, to prevent it from slowing us down too
-        # much, put this code in a variable and delete it AFTER it fires once
-        set hack {
-            # for now, just pick a number out of thin air. Ideally
-            # we'd compute the number of lines that are visible and
-            # use that, but I'm too lazy today...
-            if {$g(count) > 25} {
-                update idletasks
-                set hack {}    ;# once fired, dont bother doing it again
-            }
-        }
     }
 
     # Compute minimal spacing to format the combobox entry numbering
     set fmtW [string length "[llength "$g(diff)"]"]
 
     # Walk through each diff hunk DERIVING global data for eventual use
+    StopDiff 0
     foreach d $g(DIFF) {
+        if { $g(StopDiff) } {
+            set g(count) 0
+            set g(COUNT) 0
+            set g(diff) [list]
+            set g(DIFF) [list]
+            break
+        }
 
         # If its Info ALREADY exists, we are obviously in EDIT mode, needing
         # primarily to keep the 'delta(*)'s updated AND (re)add into comboBox
@@ -6783,10 +6769,12 @@ proc mark-diffs {{rmvrpl {}}} {
             }
             # measure it, remembering the LONGEST entry seen ...
             set boxW [max $boxW [string length "$item"]]
-
-            eval $hack ;# ... and TRY to update display ASAP
+        }
+        if { $g(count) % 500 == 0 } {
+            UpdateDiffStatus "Step 1 of 2: Mark differences" $g(count) [llength $g(DIFF)]
         }
     }
+    UpdateDiffStatus "Step 1 of 2: Mark differences" 100 100
     # Beyond here, MOST other tool functions are based on g(diff) and g(count)
     #   [big exception is "line numbering" code that uses g(DIFF) and g(COUNT)]
 
@@ -6873,7 +6861,14 @@ proc remark-diffs {} {
     }
 
     # Now, reapply the tags applicable to all the diff regions
+    set count 0
+    if { [llength $g(diff)] > 0 } {
+        StopDiff 0
+    }
     foreach hID $g(diff) {
+        if { $g(StopDiff) } {
+            break
+        }
         # First the difftag ...
         set-tag $hID difftag
 
@@ -6892,7 +6887,12 @@ proc remark-diffs {} {
         } else {
             de-skew-hunk $hID false
         }
+        incr count
+        if { $count % 500 == 0 } {
+            UpdateDiffStatus "Step 2 of 2: Apply tags" $count [llength $g(diff)]
+        }
     }
+    UpdateDiffStatus "Step 2 of 2: Apply tags" 100 100
 
     # Turn "plot-line-info" processing back ON if it was OFF
     if {$g(startPhase) == 1} {incr g(startPhase)}
@@ -7195,7 +7195,11 @@ proc rediff {} {
         $w(combo) configure -commandstate disabled
         $w(combo) configure -value {}
         $w(combo) configure -commandstate normal
-        after idle {show-status "Files are identical"}
+        if { $g(StopDiff) } {
+            after idle {show-status "Comparison cancelled"}
+        } else {
+            after idle {show-status "Files are identical"}
+        }
         buttons disabled
     }
 }
@@ -7392,7 +7396,7 @@ proc hunk-ndx { id {lst diff}} {
 # Get things going...
 ###############################################################################
 # OPA >>>
-proc tkdiff-main { { leftFile "" } { rightFile "" } } {
+proc tkdiff-main { { leftFile "" } { rightFile "" } { removeFilesAtEnd false } } {
 # OPA <<<
     global g w opts ASYNc startupError errorInfo tk_version
     # debug-info "main" - No point... only works AFTER "commandline" runs
@@ -7414,12 +7418,23 @@ proc tkdiff-main { { leftFile "" } { rightFile "" } } {
     wm withdraw .
     # OPA >>>
     if { [winfo exists $w(tw)] } {
-        CloseAppWindow
+        tkdiff-CloseAppWindow
     }
     toplevel $w(tw)
 
-    wm protocol $w(tw) WM_DELETE_WINDOW CloseAppWindow
+    wm protocol $w(tw) WM_DELETE_WINDOW tkdiff-CloseAppWindow
     wm title $w(tw) "$g(name) $g(version)"
+
+    if { $leftFile ne "" } {
+        if { $removeFilesAtEnd } {
+            lappend g(tempfiles) $leftFile
+        }
+    }
+    if { $rightFile ne "" } {
+        if { $removeFilesAtEnd } {
+            lappend g(tempfiles) $rightFile
+        }
+    }
     # OPA <<< 
 
     if {![catch {set windowingsystem [tk windowingsystem]}]} {
@@ -7773,7 +7788,7 @@ proc newDiffDialog {} {
         }
         button $commands.cancel -text "Cancel" -width 5 -default normal \
           -command {
-            if {! [winfo exists $w(tw).client]} {CloseAppWindow}
+            if {! [winfo exists $w(tw).client]} {tkdiff-CloseAppWindow}
             wm withdraw $w(newDiffPopup); set waitvar 0
         }
         pack $commands.ok $commands.cancel -side left -fill none -expand y \

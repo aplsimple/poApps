@@ -1,5 +1,5 @@
 # Module:         poExec
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 02 / 20
 #
 # Distributed under BSD license.
@@ -26,11 +26,9 @@ namespace eval poExec {
         # 0: First check, if an external program is available and use
         #    internal copy only if no external program was found.
         set sPo(force) 0  
-    }
 
-    # Check for starkit availability.
-    # package require starkit
-    # set wrapmode [starkit::startup]
+        set retVal [catch {package require twapi} version]
+    }
 
     proc SetForceFlag { flag } {
         variable sPo
@@ -114,8 +112,7 @@ namespace eval poExec {
     }
 
     proc Kill { progName } {
-        if { $::tcl_platform(platform) eq "windows" } {
-            package require twapi
+        if { [poMisc HavePkg "twapi"] } {
             set pids [concat [twapi::get_process_ids -name $progName] \
                              [twapi::get_process_ids -path $progName]]
             foreach pid $pids {

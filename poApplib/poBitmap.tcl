@@ -1,5 +1,5 @@
 # Module:         poBitmap
-# Copyright:      Paul Obermeier 2001-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2001-2023 / paul@poSoft.de
 # First Version:  2001 / 05 / 21
 #
 # Distributed under BSD license.
@@ -18,7 +18,8 @@ namespace eval poBitmap {
     namespace ensemble create
 
     namespace export Init LoadSettings SaveSettings
-    namespace export ShowMainWin ParseCommandLine IsOpen
+    namespace export ShowMainWin CloseAppWindow
+    namespace export ParseCommandLine IsOpen
     namespace export GetUsageMsg OpenBmp
 
     # The following variables must be set, before reading parameters and
@@ -395,8 +396,8 @@ namespace eval poBitmap {
         poMenu AddCommand $editMenu "Flip horizontally" ""       "${ns}::FlipHori"
         poMenu AddCommand $editMenu "Flip vertically"   ""       "${ns}::FlipVert"
         $editMenu add separator
-        poMenu AddCommand $editMenu "Rotate 90° left"   ""       "${ns}::Rot90Deg 0"
-        poMenu AddCommand $editMenu "Rotate 90° right"  ""       "${ns}::Rot90Deg 1"
+        poMenu AddCommand $editMenu "Rotate 90Â° left"   ""       "${ns}::Rot90Deg 0"
+        poMenu AddCommand $editMenu "Rotate 90Â° right"  ""       "${ns}::Rot90Deg 1"
         $editMenu add separator
         poMenu AddCommand $editMenu "Shift left"        "Ctrl+H" "${ns}::ShiftBmp -1  0"
         poMenu AddCommand $editMenu "Shift right"       "Ctrl+L" "${ns}::ShiftBmp  1  0"
@@ -604,7 +605,7 @@ namespace eval poBitmap {
         set sPo(bmp,labelInvert) $invertLabel
 
         UpdateMainTitle
-        WriteInfoStr $sPo(initStr)
+        WriteInfoStr $sPo(initStr) $sPo(initType)
 
         if { [poApps GetHideWindow] } {
             wm withdraw $sPo(tw)
@@ -620,7 +621,7 @@ namespace eval poBitmap {
         variable ns
 
         poMenu DeleteMenuEntries $menuId 2
-        poMenu AddRecentFileList $menuId ${ns}::OpenBmp
+        poMenu AddRecentFileList $menuId ${ns}::OpenBmp -extensions [list ".xbm"]
     }
 
     proc AddRecentDirs { menuId } {
@@ -1234,7 +1235,7 @@ namespace eval poBitmap {
         variable ns
         variable sPo
 
-        if { [poApps HavePkg "Img"] } {
+        if { [poMisc HavePkg "Img"] } {
             set fileTypes [poImgType GetSelBoxTypes]
         } else {
             set fileTypes {
@@ -1549,11 +1550,6 @@ namespace eval poBitmap {
         if { ! [info exists sPo(LastBmpPackageType)] } {
             set sPo(LastBmpPackageType) [lindex [lindex $fileTypes 0] 0]
         }
-        set fileExt [file extension $initFile]
-        set typeExt [poMisc GetExtensionByType $fileTypes $sPo(LastBmpPackageType)]
-        if { $typeExt ne $fileExt } {
-            set initFile [file rootname $initFile]
-        }
 
         set fileName [tk_getSaveFile \
                      -filetypes $fileTypes \
@@ -1863,7 +1859,7 @@ namespace eval poBitmap {
             set optStr [poImgType GetOptByFmt $fmtStr "read"]
 
             set retVal [catch {set phImg [image create photo -file $imgName \
-                                          -format "[string tolower $fmtStr] $optStr"]} err1]
+                                          -format [list [string tolower $fmtStr] {*}$optStr]]} err1]
             if { $retVal != 0 } {
                 tk_messageBox -message "Can't read bitmap $imgName ($err1)." \
                                        -type ok -icon warning
@@ -1903,7 +1899,7 @@ namespace eval poBitmap {
 
         set imgName [GetFileName "Save bitmap as" "save" [file tail $sPo(bmp,defName)]]
         if { $imgName ne "" } {
-            if { [poApps HavePkg "Img"] } {
+            if { [poMisc HavePkg "Img"] } {
                 SaveBmp $sPo(tw) $sPo(bmp,imgNormal) $imgName
             } else {
                 poImgMisc WriteBmp $sPo(bmp,imgInvert) $imgName
@@ -1942,13 +1938,19 @@ namespace eval poBitmap {
             tk_messageBox -title "Error" -icon error \
                           -message "Error saving image:\n$errMsg"
         }
-        $tw config -cursor top_left_arrow
+        $tw config -cursor arrow
     }
 
     proc GetInitString {} {
         variable sPo
 
         return $sPo(initStr)
+    }
+
+    proc GetInitType {} {
+        variable sPo
+
+        return $sPo(initType)
     }
 
     proc LoadSettings { cfgDir } {
@@ -1979,9 +1981,11 @@ namespace eval poBitmap {
         set cfgFile [file normalize [poCfgFile GetCfgFilename $sPo(appName) $cfgDir]]
         if { [poMisc IsReadableFile $cfgFile] } {
             set sPo(initStr) "Settings loaded from file $cfgFile"
+            set sPo(initType) "Ok"
             source $cfgFile
         } else {
-            set sPo(initStr) "No settings file found. Using default values."
+            set sPo(initStr) "No settings file \"$cfgFile\" found. Using default values."
+            set sPo(initType) "Warning"
         }
         set sPo(cfgDir) $cfgDir
 
@@ -2099,24 +2103,12 @@ namespace eval poBitmap {
     proc CloseAppWindow {} {
         variable sPo
 
-        if { [poApps GetAutosaveOnExit] } {
-            SaveSettings
+        if { ! [info exists sPo(tw)] || ! [winfo exists $sPo(tw)] } {
+            return
         }
 
-        if { $sPo(bmp,changed) } {
-            set retVal [tk_messageBox \
-              -title "Save bitmap" \
-              -message "Bitmap has been changed. Save bitmap?" \
-              -type yesnocancel -default yes -icon question]
-            if { $retVal eq "yes" } {
-                if { [SaveBmpFile] eq "" } {
-                    focus $sPo(tw)
-                    return false
-                }
-            } elseif { $retVal eq "cancel" } {
-                focus $sPo(tw)
-                return false
-            }
+        if { [poApps GetAutosaveOnExit] } {
+            SaveSettings
         }
 
         # Delete (potentially open) sub-toplevels of this application.
@@ -2132,9 +2124,6 @@ namespace eval poBitmap {
     }
 
     proc ExitApp {} {
-        if { [CloseAppWindow] == false } {
-            return
-        }
         poApps ExitApp
     }
 
@@ -2265,7 +2254,7 @@ namespace eval poBitmap {
                 grab $oldGrab
             }
         }
-        $canvasId configure -cursor top_left_arrow
+        $canvasId configure -cursor arrow
         set sPo(drawMode) 1
         WriteInfoStr ""
         if { $sPo(cursor,mouse) } {
@@ -2699,7 +2688,7 @@ namespace eval poBitmap {
         MoveCursor 0 0
 
         if { [llength $fileOrDirList] == 0 } {
-            WriteInfoStr [GetInitString]
+            WriteInfoStr [GetInitString] [GetInitType]
         }
     }
 

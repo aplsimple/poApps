@@ -1,5 +1,5 @@
 # Module:         poMath
-# Copyright:      Paul Obermeier 2017-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2017-2023 / paul@poSoft.de
 # First Version:  2017 / 06 / 22
 #
 # Distributed under BSD license.

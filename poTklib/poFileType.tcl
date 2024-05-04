@@ -1,5 +1,5 @@
 # Module:         poFileType
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 05 / 01
 #
 # Distributed under BSD license.
@@ -325,9 +325,13 @@ namespace eval poFileType {
         
         set x [winfo pointerx $winId]
         set y [winfo pointery $winId]
-        set retVal [poWin EntryBox $curType $x $y 20]
-        if { $retVal ne "" } {
-            Rename $retVal
+        lassign [poWin EntryBox $curType $x $y 20] retVal retName
+        if { ! $retVal } {
+            # User pressed Escape.
+            return
+        }
+        if { $retName ne "" } {
+            Rename $retName
         }
     }
 
@@ -362,9 +366,13 @@ namespace eval poFileType {
 
         set x [winfo pointerx $winId]
         set y [winfo pointery $winId]
-        set retVal [poWin EntryBox [Str NewTypeName] $x $y 20]
-        if { $retVal ne "" } {
-            New $retVal
+        lassign [poWin EntryBox [Str NewTypeName] $x $y 20] retVal retName
+        if { ! $retVal } {
+            # User pressed Escape.
+            return
+        }
+        if { $retName ne "" } {
+            New $retName
         }
     }
 
@@ -457,6 +465,30 @@ namespace eval poFileType {
         }
         $w delete 0 end
         $w insert 0 [format "\"%s\"" $path]
+    }
+
+    proc _SetProgByDrop { progType fileList } {
+        variable curType
+        variable sPo
+
+        foreach f $fileList {
+            if { [file executable $f] } {
+                set sPo($curType,$progType) [format "\"%s\"" $f]
+                return
+            }
+        }
+    }
+
+    proc _SetEditorByDrop { w fileList } {
+        _SetProgByDrop "editor" $fileList
+    }
+
+    proc _SetHexEditorByDrop { w fileList } {
+        _SetProgByDrop "hexedit" $fileList
+    }
+
+    proc _SetGuiDiffByDrop { w fileList } {
+        _SetProgByDrop "guiDiff" $fileList
     }
 
     proc OpenWin { fr } {
@@ -552,6 +584,7 @@ namespace eval poFileType {
         ttk::button $wf.fr$row.b -text "Select ..." \
                     -command "${ns}::GetGuiDiff $wf.fr$row.e $tw"
         pack $wf.fr$row.e $wf.fr$row.b -side left -anchor w
+        poDragAndDrop AddTtkBinding $wf.fr$row.e ${ns}::_SetGuiDiffByDrop
         foreach t $sPo(typeList) {
             set tmpList [list [list sPo($t,guiDiff)] [list $sPo($t,guiDiff)]]
             lappend varList $tmpList
@@ -569,6 +602,7 @@ namespace eval poFileType {
         ttk::button $wf.fr$row.b -text "Select ..." \
                     -command "${ns}::GetEditor $wf.fr$row.e $tw"
         pack $wf.fr$row.e $wf.fr$row.b -side left -anchor w
+        poDragAndDrop AddTtkBinding $wf.fr$row.e ${ns}::_SetEditorByDrop
         foreach t $sPo(typeList) {
             set tmpList [list [list sPo($t,editor)] [list $sPo($t,editor)]]
             lappend varList $tmpList
@@ -586,6 +620,7 @@ namespace eval poFileType {
         ttk::button $wf.fr$row.b -text "Select ..." \
                     -command "${ns}::GetHexEditor $wf.fr$row.e $tw"
         pack $wf.fr$row.e $wf.fr$row.b -side left -anchor w
+        poDragAndDrop AddTtkBinding $wf.fr$row.e ${ns}::_SetHexEditorByDrop
         foreach t $sPo(typeList) {
             set tmpList [list [list sPo($t,hexedit)] [list $sPo($t,hexedit)]]
             lappend varList $tmpList

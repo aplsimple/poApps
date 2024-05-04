@@ -1,5 +1,5 @@
 # Module:         poImgview
-# Copyright:      Paul Obermeier 1999-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 1999-2023 / paul@poSoft.de
 # First Version:  1999 / 05 / 20
 #
 # Distributed under BSD license.
@@ -13,7 +13,8 @@ namespace eval poImgview {
     namespace ensemble create
 
     namespace export Init LoadSettings SaveSettings
-    namespace export ShowMainWin ParseCommandLine IsOpen
+    namespace export ShowMainWin CloseAppWindow
+    namespace export ParseCommandLine IsOpen
     namespace export GetUsageMsg
     namespace export ReadImg AddImg DelImg
     namespace export GetImgNumByPhoto
@@ -28,6 +29,8 @@ namespace eval poImgview {
         set sPo(tw)      ".poImgview"  ; # Name of toplevel window
         set sPo(appName) "poImgview"   ; # Name of tool
         set sPo(cfgDir)  ""            ; # Directory containing config files
+
+        set sPo(lastDir) [pwd]
 
         set sPo(optBatch)            false
         set sPo(optConvert)          false
@@ -54,6 +57,16 @@ namespace eval poImgview {
 
         # Determine machine dependent fixed font.
         set sPo(fixedFont) [poWin GetFixedFont]
+    }
+
+    proc GetSupportedExtensions {} {
+        set extList [list]
+        foreach fmt [poImgType GetFmtList] {
+            foreach ext [poImgType GetExtList $fmt] {
+                lappend extList $ext
+            }
+        }
+        return $extList
     }
 
     # The following functions are used for loading/storing poImgview specific
@@ -355,6 +368,20 @@ namespace eval poImgview {
 
         return [list $sPo(zoom,autofit) \
                      $sPo(zoom)]
+    }
+
+    proc SetTranspParams { hexColor threshold } {
+        variable sPo
+
+        set sPo(transpCol,hex)       $hexColor
+        set sPo(transpCol,threshold) $threshold
+    }
+
+    proc GetTranspParams {} {
+        variable sPo
+
+        return [list $sPo(transpCol,hex) \
+                     $sPo(transpCol,threshold)]
     }
 
     proc SetViewParams { showImgInfo showFileInfo } {
@@ -752,15 +779,50 @@ namespace eval poImgview {
     }
 
     proc ReadImgByDrop { canvasId fileList } {
+        variable sPo
+
+        set sPo(stopJob) 0
         _PushInfoState
         foreach f $fileList {
-            if { [file isfile $f] } {
-                ReadImg $f
+            ReadImg $f
+            if { $sPo(stopJob) } {
+                WriteInfoStr "Image dropping stopped by user." "Warning"
+                break
             }
         }
         _PopInfoState
         ShowCurrent
         ScanCurDirForImgs
+    }
+
+    proc AddClipboardFormats { menuId type } {
+        variable ns
+
+        poMenu DeleteMenuEntries $menuId 0
+        if { $type eq "paste" } {
+            set countEntries 0
+            foreach fmtName [poWinCapture GetSupportedFormatNames $type] {
+               if { [poWinCapture IsFormatAvailable $fmtName] } {
+                    poMenu AddCommand $menuId $fmtName "" [list ${ns}::PasteImg $fmtName]
+                    incr countEntries
+                }
+            }
+            if { [llength [poWinCapture GetPathList]] > 0 } {
+                poMenu AddCommand $menuId "Path List" "" [list ${ns}::PastePathList]
+                incr countEntries
+            }
+
+            if { $countEntries == 0 } {
+                poMenu AddCommand $menuId "No images in clipboard" "" ""
+            }
+        } else {
+            if { [HaveImgs] } {
+                foreach fmtName [poWinCapture GetSupportedFormatNames $type] {
+                    poMenu AddCommand $menuId $fmtName "" [list ${ns}::CopyImg $fmtName]
+                }
+                poMenu AddCommand $menuId "Path List" "" [list ${ns}::CopyPathList]
+            }
+        }
     }
 
     proc ShowMainWin {} {
@@ -855,6 +917,10 @@ namespace eval poImgview {
         poWinInfo SetTitle $sPo(fileInfoWidget) "File information"
         UpdateInfoWidget
 
+        # Create Drag-And-Drop binding for the info widgets.
+        poDragAndDrop AddCanvasBinding $sPo(imgInfoWidget) ${ns}::ReadImgByDrop
+        poDragAndDrop AddCanvasBinding $sPo(fileInfoWidget) ${ns}::ReadImgByDrop
+
         set thumbFr $lf.tfr
         ttk::frame $thumbFr
         pack $thumbFr -side top -expand 1 -fill both
@@ -879,13 +945,13 @@ namespace eval poImgview {
         pack $selfr -side top -fill x
         poToolbar New $selfr
         poToolbar AddButton $selfr [::poBmpData::playbegin] \
-                  ${ns}::ShowFirst "Show first loaded image (Home)"
+                  ${ns}::ShowFirst "Show first loaded image"
         poToolbar AddButton $selfr [::poBmpData::playrevstep] \
-                  ${ns}::ShowPrev "Show previous loaded image (Page Up)"
+                  ${ns}::ShowPrev "Show previous loaded image"
         poToolbar AddButton $selfr [::poBmpData::playfwdstep] \
-                  ${ns}::ShowNext "Show next loaded image (Page Down)"
+                  ${ns}::ShowNext "Show next loaded image"
         poToolbar AddButton $selfr [::poBmpData::playend] \
-                  ${ns}::ShowLast "Show last loaded image (End)"
+                  ${ns}::ShowLast "Show last loaded image"
 
         # Add buttons for marking left/right image.
         set markfr $thumbFr.markFr
@@ -932,9 +998,6 @@ namespace eval poImgview {
                   "Number of images in directory" -width 6 -justify right -state disabled
         bind $curImgIndId <Key-Return> "${ns}::LoadNextImg"
 
-        bind $sPo(tw) <Key-j> "${ns}::LoadNextImg -1"
-        bind $sPo(tw) <Key-k> "${ns}::LoadNextImg  1"
-
         set fileComboMaster $pixelFr.selFr
         set sPo(fileCombo) [poWinSelect CreateFileSelect $fileComboMaster \
                             $sPo(lastFile) "open" ""]
@@ -958,9 +1021,12 @@ namespace eval poImgview {
                        -fill $sLogo(color) -text Logo -tags LogoText
         $sPo(mainCanv) create image 0 0 -anchor nw -tags "MyImage"
 
+        bind $sPo(mainCanv) <Key-j> "${ns}::LoadNextImg -1"
+        bind $sPo(mainCanv) <Key-k> "${ns}::LoadNextImg  1"
+
         poSelRect NewSelection $sPo(mainCanv) "SelectRect"
 
-        # Create a Drag-And-Drop binding for the image canvas.
+        # Create Drag-And-Drop binding for the image canvas.
         poDragAndDrop AddCanvasBinding $sPo(mainCanv) ${ns}::ReadImgByDrop
  
         # Create menus File, Edit, View, Settings and Help
@@ -1011,7 +1077,10 @@ namespace eval poImgview {
         $sPo(browseMenu) add separator
 
         $fileMenu add separator
-        poMenu AddCommand $fileMenu "Save As ..."    "Ctrl+S" ${ns}::SaveAs
+        poMenu AddCommand $fileMenu "Save (original directory) ..." "Ctrl+Shift+S" ${ns}::SaveOrigDir
+        poMenu AddCommand $fileMenu "Save as ..."                   "Ctrl+S"       ${ns}::SaveAs
+
+        $fileMenu add separator
         poMenu AddCommand $fileMenu "Capture canvas" "F2"     ${ns}::CaptureCanv
         poMenu AddCommand $fileMenu "Capture window" "F4"     ${ns}::CaptureWin
 
@@ -1024,6 +1093,7 @@ namespace eval poImgview {
         bind $sPo(tw) <Control-n>  ${ns}::New
         bind $sPo(tw) <Control-o>  ${ns}::Open
         bind $sPo(tw) <Control-b>  ${ns}::BrowseDir
+        bind $sPo(tw) <Control-S> ${ns}::SaveOrigDir
         bind $sPo(tw) <Control-s> ${ns}::SaveAs
         bind $sPo(tw) <Key-F2>    ${ns}::CaptureCanv
         bind $sPo(tw) <Key-F4>    ${ns}::CaptureWin
@@ -1040,16 +1110,20 @@ namespace eval poImgview {
         set combMenu $editMenu.comb
         set rotMenu  $editMenu.rot
         set flipMenu $editMenu.flip
+
         menu $editMenu -tearoff 0
+
         if { $::tcl_platform(platform) eq "windows" } {
-            poMenu AddCommand $editMenu "Copy"  "Ctrl+C" ${ns}::CopyImg
-            poMenu AddCommand $editMenu "Paste" "Ctrl+V" ${ns}::PasteImg
+            set copyMenu $editMenu.copy
+            $editMenu add cascade -label "Copy as" -accelerator "Ctrl+C" -menu $copyMenu
+            menu $copyMenu -tearoff 0 -postcommand "${ns}::AddClipboardFormats $copyMenu copy"
+
+            set pasteMenu $editMenu.paste
+            $editMenu add cascade -label "Paste from" -accelerator "Ctrl+V" -menu $pasteMenu
+            menu $pasteMenu -tearoff 0 -postcommand "${ns}::AddClipboardFormats $pasteMenu paste"
+
+            poMenu AddCommand $editMenu "View clipboard" "" ${ns}::OpenClipboardViewer
             $editMenu add separator
-            if { [poApps HavePkg "cawt"] } {
-                poMenu AddCommand $editMenu "Copy to Excel"    "" ${ns}::ImgToExcel
-                poMenu AddCommand $editMenu "Paste from Excel" "" ${ns}::ExcelToImg
-                $editMenu add separator
-            }
         }
         poMenu AddCommand $editMenu "Clear"      "F9" ${ns}::DelImg
         poMenu AddCommand $editMenu "Clear all"  ""   ${ns}::DelAll
@@ -1067,8 +1141,8 @@ namespace eval poImgview {
         poMenu AddCommand $editMenu "Crop" "Ctrl+P" ${ns}::DoCropImg
         $editMenu add cascade -label "Rotate" -menu $rotMenu
         menu $rotMenu -tearoff 0
-        poMenu AddCommand $rotMenu "90° left"   "" "${ns}::RotImg  90"
-        poMenu AddCommand $rotMenu "90° right"  "" "${ns}::RotImg -90"
+        poMenu AddCommand $rotMenu "90Â° left"   "" "${ns}::RotImg  90"
+        poMenu AddCommand $rotMenu "90Â° right"  "" "${ns}::RotImg -90"
         $editMenu add cascade -label "Flip" -menu $flipMenu
         menu $flipMenu -tearoff 0
         poMenu AddCommand $flipMenu "horizontal" "" "${ns}::FlipImg horizontal"
@@ -1095,6 +1169,7 @@ namespace eval poImgview {
         $viewMenu add separator
         $viewMenu add cascade -label "Histogram" -menu $histoMenu
         poMenu AddCommand $viewMenu "Color count" "" "${ns}::ShowColorCount"
+        poMenu AddCommand $viewMenu "Hex dump" "" "${ns}::ShowHexDump"
         $viewMenu add separator
         poMenu AddCommand $viewMenu "Slide show" "Ctrl+E" "${ns}::ShowSlideShow"
         $viewMenu add separator
@@ -1102,8 +1177,9 @@ namespace eval poImgview {
         $viewMenu add cascade -label "RAW palette" -menu $rawMenu
 
         bind $sPo(tw) <Control-y>  ${ns}::SwitchZoomRect
-        bind $sPo(tw) <Key-plus>   "${ns}::ChangeZoom 1"
-        bind $sPo(tw) <Key-minus>  "${ns}::ChangeZoom -1"
+        bind $sPo(mainCanv) <Key-plus>   "${ns}::ChangeZoom 1"
+        bind $sPo(mainCanv) <Key-minus>  "${ns}::ChangeZoom -1"
+        bind Canvas <1> { focus %W }
         bind $sPo(tw) <Control-e>  "${ns}::ShowSlideShow"
 
         menu $zoomMenu -tearoff 0
@@ -1138,13 +1214,18 @@ namespace eval poImgview {
         bind $sPo(tw) <Control-J>  "${ns}::ShowPaletteImage false true"
 
         menu $rawMenu -tearoff 0
-        poMenu AddCommand $rawMenu "Greyscale"   "" "${ns}::ShowRawAsPalette Greyscale"
-        poMenu AddCommand $rawMenu "Pseudocolor" "" "${ns}::ShowRawAsPalette Pseudocolor"
-        poMenu AddCommand $rawMenu "RG Color"    "" "${ns}::ShowRawAsPalette RedGreen"
+        poMenu AddCommand $rawMenu "Greyscale"   "" "${ns}::ShowRawAsPalette greyscale"
+        poMenu AddCommand $rawMenu "Pseudocolor" "" "${ns}::ShowRawAsPalette pseudo"
+        poMenu AddCommand $rawMenu "RG Color"    "" "${ns}::ShowRawAsPalette redgreen"
 
         # Menu Tools
         menu $toolMenu -tearoff 0
         poMenu AddCommand $toolMenu "Image map ..."    "" ${ns}::ShowImageMapWin
+        if { [poMisc HavePkg "cawt"] } {
+            $toolMenu add separator
+            poMenu AddCommand $toolMenu "Copy as Excel cell background colors"    "" ${ns}::ImgToExcel
+            poMenu AddCommand $toolMenu "Paste from Excel cell background colors" "" ${ns}::ExcelToImg
+        }
 
         # Menu Settings
         set appSettMenu $settMenu.app
@@ -1224,9 +1305,11 @@ namespace eval poImgview {
                   ${ns}::Open "Open image file (Ctrl+O)"
         poToolbar AddButton $toolfr [::poBmpData::browse] \
                   ${ns}::BrowseDir "Browse directory (Ctrl+B)"
+        poToolbar AddButton $toolfr [::poBmpData::save2] \
+                  ${ns}::SaveOrigDir "Save in original directory ... (Ctrl+Shift+S)"
         poToolbar AddButton $toolfr [::poBmpData::save] \
-                  ${ns}::SaveAs "Save current image ... (Ctrl+S)"
-        bind $sPo(tw) <Key-n> ${ns}::ToggleLoadAsNewImg
+                  ${ns}::SaveAs "Save as ... (Ctrl+S)"
+        bind $sPo(mainCanv) <Key-n> ${ns}::ToggleLoadAsNewImg
 
         # Add new toolbar group and associated buttons.
         poToolbar AddGroup $toolfr
@@ -1280,6 +1363,8 @@ namespace eval poImgview {
                   "${ns}::ShowHistogram log" "Show logarithmic histogram (Ctrl+H)"
         poToolbar AddButton $toolfr [::poBmpData::colorcount] \
                   "${ns}::ShowColorCount" "Show color count window"
+        poToolbar AddButton $toolfr [::poBmpData::linenuminv] \
+                  "${ns}::ShowHexDump" "Show hex dump window"
 
         # Add new toolbar group and associated buttons.
         poToolbar AddGroup $toolfr
@@ -1297,6 +1382,30 @@ namespace eval poImgview {
                   "${ns}::ShowPaletteImage true true" \
                   "New inverse palette image (Ctrl+J)\nChange to inverse palette view (Ctrl+Shift+J)"
 
+        # Add new toolbar group and associated buttons.
+        poToolbar AddGroup $toolfr
+        set sPo(firstPageBtn) [poToolbar AddButton $toolfr [::poBmpData::playtop] \
+                               "${ns}::ShowPage 0" "Show first page (Home)"]
+        set sPo(prevPageBtn)  [poToolbar AddButton $toolfr [::poBmpData::playprev] \
+                               "${ns}::ShowPage prev" "Show previous page (Page Up)"]
+        set sPo(nextPageBtn)  [poToolbar AddButton $toolfr [::poBmpData::playnext] \
+                               "${ns}::ShowPage next" "Show next page (Page Down)"]
+        set sPo(lastPageBtn)  [poToolbar AddButton $toolfr [::poBmpData::playbottom] \
+                               "${ns}::ShowPage end" "Show last page (End)"]
+        set curPageEntry      [poToolbar AddEntry $toolfr ${ns}::sPo(curPage) \
+                               "Current page number" -width 3 -justify right]
+        poToolbar AddLabel $toolfr "of" ""
+        poToolbar AddEntry $toolfr ${ns}::sPo(numPages) \
+                  "Number of pages in image" -width 3 -justify right -state disabled
+        bind $curPageEntry <Key-Return> "${ns}::ShowPageByEntry"
+
+        set extractBtn [poToolbar AddButton $toolfr [::poBmpData::sheetOut] \
+                        ${ns}::DoExtractPages "Extract pages"]
+
+        poWin AddToSwitchableWidgets "MultiPage" $curPageEntry $extractBtn \
+              $sPo(firstPageBtn) $sPo(prevPageBtn) $sPo(nextPageBtn) $sPo(lastPageBtn)
+        poWin ToggleSwitchableWidgets "MultiPage" false
+        
         # Create widget for status messages.
         set sPo(StatusWidget) [poWin CreateStatusWidget $sPo(tw).workfr.statfr]
                   
@@ -1313,17 +1422,16 @@ namespace eval poImgview {
         CreateToolsRollUp $sPo(infoFr)
 
         # Create bindings for this application.
-        catch {bind $sPo(tw) <Key-Page_Up>   ${ns}::ShowPrev}
-        catch {bind $sPo(tw) <Key-Prior>     ${ns}::ShowPrev}
-        catch {bind $sPo(tw) <Key-Page_Down> ${ns}::ShowNext}
-        catch {bind $sPo(tw) <Key-Next>      ${ns}::ShowNext}
-        catch {bind $sPo(tw) <Key-Home>      ${ns}::ShowFirst}
-        catch {bind $sPo(tw) <Key-End>       ${ns}::ShowLast}
-        catch {bind $sPo(tw) <Key-s>         ${ns}::ShowStop}
-        catch {bind $sPo(tw) <Key-p>         "${ns}::ShowPlay  1"}
-        catch {bind $sPo(tw) <Key-o>         "${ns}::ShowPlay -1"}
-
-        bind $sPo(tw) <KeyPress-Escape>      "${ns}::StopJob"
+        catch { bind $sPo(mainCanv) <Key-Page_Up>   "${ns}::ShowPage prev" }
+        catch { bind $sPo(mainCanv) <Key-Prior>     "${ns}::ShowPage prev" }
+        catch { bind $sPo(mainCanv) <Key-Page_Down> "${ns}::ShowPage next" }
+        catch { bind $sPo(mainCanv) <Key-Next>      "${ns}::ShowPage next" }
+        catch { bind $sPo(mainCanv) <Key-Home>      "${ns}::ShowPage 0" }
+        catch { bind $sPo(mainCanv) <Key-End>       "${ns}::ShowPage end" }
+        catch { bind $sPo(mainCanv) <Key-s>         "${ns}::ShowStop" }
+        catch { bind $sPo(mainCanv) <Key-p>         "${ns}::ShowPlay  1" }
+        catch { bind $sPo(mainCanv) <Key-o>         "${ns}::ShowPlay -1" }
+        bind $sPo(mainCanv) <KeyPress-Escape>       "${ns}::StopJob"
 
         # Initialize rectangle for logo.
         set sLogo(show) 1
@@ -1333,7 +1441,7 @@ namespace eval poImgview {
         SetLogoPos
 
         SwitchBindings "SelRect"
-        WriteInfoStr $sPo(initStr)
+        WriteInfoStr $sPo(initStr) $sPo(initType)
 
         ScanCurDirForImgs
 
@@ -1370,9 +1478,9 @@ namespace eval poImgview {
             set phImg [GetCurImgPhoto]
             if { $sPo(showImgInfo) } {
                 if { [info exists sImg(rawDict,[GetCurImgNum])] } {
-                    poWinInfo UpdateImgInfo $sPo(imgInfoWidget) $phImg "" $sImg(rawDict,[GetCurImgNum])
+                    poWinInfo UpdateImgInfo $sPo(imgInfoWidget) [GetCurImgName] $phImg "" $sImg(rawDict,[GetCurImgNum])
                 } else {
-                    poWinInfo UpdateImgInfo $sPo(imgInfoWidget) $phImg
+                    poWinInfo UpdateImgInfo $sPo(imgInfoWidget) [GetCurImgName] $phImg
                 }
             }
             if { $sPo(showFileInfo) } {
@@ -1402,7 +1510,7 @@ namespace eval poImgview {
         variable ns
 
         poMenu DeleteMenuEntries $menuId 2
-        poMenu AddRecentFileList $menuId ${ns}::ReadRecentImg
+        poMenu AddRecentFileList $menuId ${ns}::ReadRecentImg -extensions [GetSupportedExtensions]
     }
 
     proc AddRecentDirs { menuId } {
@@ -1432,6 +1540,18 @@ namespace eval poImgview {
 
         poColorCount ShowWin "Color count display" [GetCurImgPhoto] \
                     [list [poAppearance CutFilePath [GetCurImgName]]] $sPo(appName)
+    }
+
+    proc ShowHexDump {} {
+        variable sPo
+        variable ns
+
+        if { ! [HaveImgs] } {
+            WriteInfoStr "No images loaded" "Error"
+            return
+        }
+
+        poExtProg StartHexEditProg [list [GetCurImgName]] ${ns}::WriteInfoStr 0
     }
 
     proc ShowPaletteImage { { createNewImg true } { inverseMap false } } {
@@ -1480,7 +1600,10 @@ namespace eval poImgview {
         set sPo(Excel,worksheetId) [::Excel::GetWorksheetIdByIndex $workbookId 1]
         ::Excel::SetWorksheetName $sPo(Excel,worksheetId) "Image"
         ::Excel::UseImgTransparency true
-        ::Excel::ImgToWorksheet $phImg $sPo(Excel,worksheetId) 1 1  5 1
+        set catchVal [catch {::Excel::ImgToWorksheet $phImg $sPo(Excel,worksheetId) 1 1  5 1}]
+        if { $catchVal } {
+            WriteInfoStr "Excel loading cancelled or not successful." "Error"
+        }
     }
 
     proc ExcelToImg {} {
@@ -1529,6 +1652,52 @@ namespace eval poImgview {
             set newImgPath [file join [file dirname $imgPath] $newImgName]
         }
         return $newImgPath
+    }
+
+    proc ExtractPages { imgNum { from 0 } { to "end" } } {
+        variable sImg
+
+        set retVal -1
+
+        set imgName $sImg(name,$imgNum)
+        set numPages [poImgPages GetNumPages $imgName]
+
+        if { $numPages <= 1 } {
+            return $retVal
+        }
+
+        if { [poApps GetVerbose] } {
+            puts "Extract pages ($from, $to) from image [GetImgName $imgNum]"
+        }
+
+        poWatch Reset swatch
+
+        set ext [file extension $imgName]
+        set fmtStr [poImgType GetFmtByExt $ext]
+        set optStr [poImgType GetOptByFmt $fmtStr "read"]
+
+        set pageCount 0
+        for { set p 0 } { $p < $numPages } { incr p } {
+            set curOptStr [format "%s -index %s" $optStr $p]
+            set retVal [catch {poImgMisc LoadImg $imgName $curOptStr} imgDict]
+            if { $retVal == 0 } {
+                set prefix [format "Page-%03d_" [expr $p + 1]]
+                set newImgPath [GetNewImgName $imgName $prefix]
+                set phImg [dict get $imgDict phImg]
+                set retVal [AddImg $phImg "" $newImgPath]
+                incr pageCount
+            }
+        }
+        WriteInfoStr [format "Extracted %d pages (%.2f sec)" $pageCount [poWatch Lookup swatch]] "Ok"
+        return $retVal
+    }
+
+    proc DoExtractPages {} {
+        if { ! [HaveImgs] } {
+            WriteInfoStr "Extract pages: No images loaded" "Error"
+            return
+        }
+        ExtractPages [GetCurImgNum]
     }
 
     proc CropImg { imgNum x1 y1 x2 y2 } {
@@ -1937,8 +2106,9 @@ namespace eval poImgview {
         set sPo(curCursor) "crosshair"
         $canv configure -closeenough 1
 
-        $canv bind MyImage <Motion> "${ns}::PrintPixelValue $canv %x %y"
-        $canv bind MyImage <Leave>  "${ns}::ClearPixelValue"
+        $canv bind MyImage <Motion>   "${ns}::PrintPixelValue $canv %x %y false"
+        $canv bind MyImage <Button-1> "${ns}::PrintPixelValue $canv %x %y true"
+        $canv bind MyImage <Leave>    "${ns}::ClearPixelValue"
 
         set sLogo(show) 0
         SetLogoPos
@@ -2046,7 +2216,40 @@ namespace eval poImgview {
                                  $sPo(tile,xmirror) $sPo(tile,ymirror)]
         WriteInfoStr [format "Tile images (%.2f sec)" [poWatch Lookup swatch]] "Ok"
 
-        AddImg $tileImg "" [CreateNewImgFileName "Tiledimage"]
+        AddImg $tileImg "" [CreateNewImgFileName "TiledImage"]
+    }
+
+    proc SetTransparentColor {} {
+        variable sPo
+        variable sImg
+
+        if { ! [HaveImgs] } {
+            WriteInfoStr "No images loaded" "Error"
+            return
+        }
+
+        lassign [poMisc RgbToDec $sPo(transpCol,hex)] r g b
+
+        if { [poApps GetVerbose] } {
+            puts "Transparent color of image [GetCurImgName]: $r $b $b"
+        }
+        poWatch Reset swatch
+        set phImg [image create photo]
+        set poImg ""
+        if { [poImgAppearance UsePoImg] } {
+            set rf [expr $r / 255.0]
+            set gf [expr $g / 255.0]
+            set bf [expr $b / 255.0]
+            set poImg [poImage NewImageFromPhoto [GetCurImgPhoto]]
+            poImgUtil SetTransparentColor $poImg $rf $gf $bf $sPo(transpCol,threshold)
+            $phImg blank
+            $poImg AsPhoto $phImg [list $::RED $::GREEN $::BLUE $::MATTE]
+        } else {
+            $phImg copy [GetCurImgPhoto]
+            poPhotoUtil SetTransparentColor $phImg $r $g $b
+        }
+        WriteInfoStr [format "Add transparency (%.2f sec)" [poWatch Lookup swatch]] "Ok"
+        return [AddImg $phImg $poImg [CreateNewImgFileName "TransparentColor"]]
     }
 
     proc ComposeImgs {} {
@@ -2190,24 +2393,29 @@ namespace eval poImgview {
                 continue
             }
             set fileName [poMisc FileSlashName $fileOrDirName]
-            if { [poType IsImage $fileName "flir"] } {
-                set rawDict [poFlirParse ReadImageFile $fileName]
+            if { [poType IsImage $fileName "raw"] } {
+                set rawDict [pawt::raw::ReadImageFile $fileName]
+            } elseif { [poType IsImage $fileName "flir"] } {
+                set rawDict [pawt::flir::ReadImageFile $fileName]
+            } elseif { [poType IsImage $fileName "fits"] } {
+                set rawDict [pawt::fits::ReadImageFile $fileName]
             } elseif { [poType IsImage $fileName "ppm"] } {
-                set rawDict [poPpmParse ReadImageFile $fileName]
+                set rawDict [pawt::ppm::ReadImageFile $fileName]
             } else {
-                set rawDict [poRawParse ReadImageFile $fileName]
+                puts "[file tail $fileName],,,,,,,,"
+                continue
             }
-            poImgDict GetImageMinMax     rawDict
-            poImgDict GetImageMeanStdDev rawDict
+            pawt GetImageMinMax     rawDict
+            pawt GetImageMeanStdDev rawDict
 
-            set width    [poImgDict GetWidth             rawDict]
-            set height   [poImgDict GetHeight            rawDict]
-            set pixSize  [poImgDict GetPixelSize         rawDict]
-            set numChans [poImgDict GetNumChannels       rawDict]
-            set min      [poImgDict GetMinValueAsString  rawDict]
-            set max      [poImgDict GetMaxValueAsString  rawDict]
-            set mean     [poImgDict GetMeanValueAsString rawDict]
-            set stdDev   [poImgDict GetStdDevAsString    rawDict]
+            set width    [pawt GetImageWidth          rawDict]
+            set height   [pawt GetImageHeight         rawDict]
+            set pixSize  [pawt GetImagePixelSize      rawDict]
+            set numChans [pawt GetImageNumChannels    rawDict]
+            set min      [pawt GetImageMinAsString    rawDict]
+            set max      [pawt GetImageMaxAsString    rawDict]
+            set mean     [pawt GetImageMeanAsString   rawDict]
+            set stdDev   [pawt GetImageStdDevAsString rawDict]
             puts "[file tail $fileName],$width,$height,$pixSize,$numChans,$min,$max,$mean,$stdDev"
             incr numImgs
         }
@@ -2401,6 +2609,9 @@ namespace eval poImgview {
 
         set sPo(tileRollUp) [poWinRollUp Add $rollUp "Tile" false]
         InitTileRollUp $sPo(tileRollUp)
+
+        set sPo(transpRollUp) [poWinRollUp Add $rollUp "Transparency" false]
+        InitTranspRollUp $sPo(transpRollUp)
     }
 
     proc UpdateRollUps { { forceClear false } } {
@@ -2835,10 +3046,69 @@ namespace eval poImgview {
         ttk::button $masterFr.fr$row.b1 -text "Scale current image" -command "${ns}::DoScaleImg" 
         ttk::button $masterFr.fr$row.b2 -text "Set resolution of current image" -command "${ns}::DoSetResolution"
         pack $masterFr.fr$row.b1 $masterFr.fr$row.b2 -side top -fill x -expand 1 -anchor w
+        if { ! [poImgAppearance UsePoImg] } {
+            $masterFr.fr$row.b1 configure -state disabled
+            poToolhelp AddBinding $masterFr.fr$row.b1 "Scaling needs the poImg extension."
+        }
         if { ! [poImgType HaveDpiSupport] } {
             $masterFr.fr$row.b2 configure -state disabled
             poToolhelp AddBinding $masterFr.fr$row.b2 "No resolution support available."
         }
+
+        grid columnconfigure $masterFr 1 -weight 1
+    }
+
+    proc GetNewTranspColor { labelId } {
+        variable sPo
+
+        set bgColor [$labelId cget -background]
+        set newColor [tk_chooseColor -initialcolor $bgColor]
+        if { $newColor ne "" } {
+            $labelId configure -background $newColor
+        }
+    }
+
+    proc InitTranspRollUp { masterFr } {
+        variable ns
+        variable sPo
+
+        # Generate left column with text labels.
+        set row 0
+        foreach labelStr { "Transparent color:" \
+                           "Threshold:" } {
+            ttk::label $masterFr.l$row -text $labelStr
+            grid $masterFr.l$row -row $row -column 0 -sticky news
+            incr row
+        }
+
+        # Generate right column with entries and buttons.
+        set row 0
+        set fr [ttk::frame $masterFr.fr$row]
+        grid $fr -row $row -column 1 -sticky news
+        set sPo(transpCol,widget) $fr.l0
+        label $fr.l0 -width 3 -relief sunken -background $sPo(transpCol,hex)
+        ttk::button $fr.b0 -text "Select ..." \
+                          -command "${ns}::GetNewTranspColor $fr.l0"
+        pack $fr.l0 $fr.b0 -in $fr -side left -padx 2
+
+        incr row
+        set fr [ttk::frame $masterFr.fr$row]
+        grid $fr -row $row -column 1 -sticky news
+        spinbox $fr.e1 -textvariable ${ns}::sPo(transpCol,threshold) -width 3 \
+                -from 0 -to 255 -increment 1 \
+                -command "poWin CheckValidInt $fr.e1 $fr.l1 0 255"
+        ttk::label $fr.l1
+        poWin CheckValidInt $fr.e1 $fr.l1 0 255
+        bind $fr.e1 <Any-KeyRelease> "poWin CheckValidInt $fr.e1 $fr.l1 0 255"
+        pack $fr.e1 -in $fr -side left -padx 2
+
+        # Create "Set Transparent Color" button
+        incr row
+        ttk::frame $masterFr.fr$row
+        grid  $masterFr.fr$row -row $row -column 0 -columnspan 2 -sticky news
+        ttk::button $masterFr.fr$row.b1 -text "Add transparency to current image" -command "${ns}::SetTransparentColor" \
+                                        -default active
+        pack $masterFr.fr$row.b1 -side left -fill x -pady 2 -expand 1
 
         grid columnconfigure $masterFr 1 -weight 1
     }
@@ -4103,7 +4373,7 @@ namespace eval poImgview {
 
         toplevel $tw
         wm title $tw $title
-        wm geometry $tw "400x350"
+        wm geometry $tw "500x400"
         bind $tw <KeyPress-Escape> "${ns}::CloseNewImgWin"
 
         set typeFr $tw.typefr
@@ -4232,7 +4502,6 @@ namespace eval poImgview {
         set sLogo(show)  0                  ; # Show logo rectangle in canvas
 
         set sPo(curCursor) "crosshair"
-        set sPo(license)   "POEVAL-BX3320-FY0432-DR7537"
 
         set sPo(zoomRectExists) 0
 
@@ -4259,7 +4528,8 @@ namespace eval poImgview {
         SetNewImgParams 256 256 "#FF0000"
         SetNewImgResolution 72 72
 
-        SetLogoParams "#FFFFFF" "tl" 25 25 ""
+        SetTranspParams "#FFFFFF" 0
+        SetLogoParams   "#FFFFFF" "tl" 25 25 ""
 
         SetTileParams 2 2 0 0 30 30
         SetComposeParams 3 30
@@ -4272,9 +4542,11 @@ namespace eval poImgview {
         set cfgFile [file normalize [poCfgFile GetCfgFilename $sPo(appName) $cfgDir]]
         if { [poMisc IsReadableFile $cfgFile] } {
             set sPo(initStr) "Settings loaded from file $cfgFile"
+            set sPo(initType) "Ok"
             source $cfgFile
         } else {
-            set sPo(initStr) "No settings file found. Using default values."
+            set sPo(initStr) "No settings file \"$cfgFile\" found. Using default values."
+            set sPo(initType) "Warning"
         }
         set sPo(cfgDir) $cfgDir
     }
@@ -4325,6 +4597,7 @@ namespace eval poImgview {
             PrintCmd $fp "NewImgResolution"
             PrintCmd $fp "ScaleParams"
             PrintCmd $fp "LoadAsNewImg"
+            PrintCmd $fp "TranspParams"
             PrintCmd $fp "ZoomParams"
             PrintCmd $fp "ViewParams"
 
@@ -4343,12 +4616,24 @@ namespace eval poImgview {
         if { $imgNum < 0 } {
             UpdateMainTitle "(No images loaded)"
             UpdateRollUps true
+            poWin ToggleSwitchableWidgets "MultiPage" false
         } else {
             if { ! [HaveImgs] } {
                 return
             }
             if { $sPo(optBatch) && ! [poApps GetDisplayImage] } {
                 return
+            }
+            poWin ToggleSwitchableWidgets "MultiPage" [expr { $sImg(numPages,$imgNum) > 1 }]
+            set sPo(curPage)  [expr $sImg(curPage,$imgNum) + 1]
+            set sPo(numPages) $sImg(numPages,$imgNum)
+            if { $sImg(curPage,[GetCurImgNum]) == 0 } {
+                $sPo(firstPageBtn) configure -state disabled
+                $sPo(prevPageBtn)  configure -state disabled
+            }
+            if { $sImg(curPage,[GetCurImgNum]) == [expr $sImg(numPages,[GetCurImgNum]) -1] } {
+                $sPo(lastPageBtn) configure -state disabled
+                $sPo(nextPageBtn) configure -state disabled
             }
 
             Zoom $sPo(zoom)
@@ -4387,6 +4672,9 @@ namespace eval poImgview {
             poWin SetScrolledFrameFraction $sPo(thumbFr) $fraction
         }
         update
+        if { [winfo exists $sPo(mainCanv)] } {
+            focus $sPo(mainCanv)
+        }
     }
 
     proc UpdFileTypeCB { combo } {
@@ -4478,24 +4766,29 @@ namespace eval poImgview {
                     if { [poType IsImage $imgName "raw"] || \
                          [poImgType GetFmtByExt [file extension $imgName]] eq "RAW" } {
                         set optStr [poImgType GetOptByFmt "RAW" "read"]
-                        set sImg(rawDict,$imgNum) [poRawParse ReadImageFile $imgName $optStr]
+                        set sImg(rawDict,$imgNum) [pawt::raw::ReadImageFile $imgName {*}$optStr]
                         set haveDict true
                     } elseif { [poType IsImage $imgName "flir"] || \
                                [poImgType GetFmtByExt [file extension $imgName]] eq "FLIR" } {
                         set optStr [poImgType GetOptByFmt "FLIR" "read"]
-                        set sImg(rawDict,$imgNum) [poFlirParse ReadImageFile $imgName $optStr]
+                        set sImg(rawDict,$imgNum) [pawt::flir::ReadImageFile $imgName {*}$optStr]
+                        set haveDict true
+                    } elseif { [poType IsImage $imgName "fits"] || \
+                               [poImgType GetFmtByExt [file extension $imgName]] eq "FITS" } {
+                        set optStr [poImgType GetOptByFmt "FITS" "read"]
+                        set sImg(rawDict,$imgNum) [pawt::fits::ReadImageFile $imgName {*}$optStr]
                         set haveDict true
                     } elseif { [poType IsImage $imgName "ppm"] || \
                                [poImgType GetFmtByExt [file extension $imgName]] eq "PPM" } {
                         set optStr [poImgType GetOptByFmt "PPM" "read"]
-                        set sImg(rawDict,$imgNum) [poPpmParse ReadImageFile $imgName $optStr]
+                        set sImg(rawDict,$imgNum) [pawt::ppm::ReadImageFile $imgName {*}$optStr]
                         set haveDict true
                     }
                 }
                 if { $haveDict && [poImgAppearance GetShowRawImgInfo] } {
                     # The minimum and maximum values are stored in the dict and will be used in ShowImg.
-                    catch { poImgDict GetImageMinMax     sImg(rawDict,$imgNum) }
-                    catch { poImgDict GetImageMeanStdDev sImg(rawDict,$imgNum) }
+                    catch { pawt GetImageMinMax     sImg(rawDict,$imgNum) }
+                    catch { pawt GetImageMeanStdDev sImg(rawDict,$imgNum) }
                 }
             }
         }
@@ -4509,6 +4802,12 @@ namespace eval poImgview {
             # Add thumb image only in interactive mode.
             AddThumb $phImg $imgName
         }
+        set numPages [poImgPages GetNumPages $imgName] 
+        set sImg(numPages,[GetNumImgs]) $numPages
+        set sImg(curPage,[GetNumImgs]) 0
+        set sPo(curPage)  1
+        set sPo(numPages) $numPages
+
         set sImg(photo,[GetNumImgs]) $phImg
         if { $poImg ne "" } {
             set sImg(poImg,[GetNumImgs]) $poImg
@@ -4609,6 +4908,8 @@ namespace eval poImgview {
             catch {unset sImg(poImg,$lastImgNum)}
             catch {unset sImg(rawDict,$lastImgNum)}
             catch {unset sImg(name,$lastImgNum)}
+            catch {unset sImg(curPage,$lastImgNum)}
+            catch {unset sImg(numPages,$lastImgNum)}
             catch {unset sPo(markImg,side,$lastImgNum)}
             catch {unset sPo(markImg,cur)}
 
@@ -4630,28 +4931,62 @@ namespace eval poImgview {
         }
     }
 
-    proc CopyImg { } {
+    proc OpenClipboardViewer {} {
+        poWinClipboard OpenClipboardWin "Clipboard Viewer"
+    }
+
+    proc CopyImg { { fmtName "CF_DIB" }  } {
         variable sPo
 
-        set selectedValue [poWinSelect GetSelectedValue $sPo(fileCombo)]
-        if { $selectedValue ne "" } {
-            clipboard clear
-            clipboard append $selectedValue
-            WriteInfoStr "Copied to clipboard: $selectedValue" "OK"
-        } elseif { [HaveImgs] } {
-            poWin Img2Clipboard [GetCurImgPhoto]
-            WriteInfoStr "Copied image to clipboard" "OK"
+        if { [HaveImgs] } {
+            set retVal [catch { poWinCapture Img2Clipboard [GetCurImgPhoto] $fmtName } errMsg]
+            if { $retVal == 0 } {
+                WriteInfoStr "Copied image to clipboard in format $fmtName" "OK"
+            } else {
+                WriteInfoStr "$errMsg" "Error"
+            }
+        } else {
+            WriteInfoStr "No images loaded" "Error"
         }
     }
 
-    proc PasteImg { } {
-        set retVal [catch { poWin Clipboard2Img } phImg]
+    proc CopyPathList {} {
+        if { [HaveImgs] } {
+            set retVal [catch { poWinCapture WritePathList [list [GetCurImgName]] } errMsg]
+            if { $retVal == 0 } {
+                WriteInfoStr "Copied path list to clipboard" "OK"
+            } else {
+                WriteInfoStr "$errMsg" "Error"
+            }
+        } else {
+            WriteInfoStr "No images loaded" "Error"
+        }
+    }
+
+    proc PasteImg { { fmtName "" } } {
+        set retVal [catch { poWinCapture Clipboard2Img $fmtName } phImg]
         if { $retVal == 0 } {
             AddImg $phImg "" [CreateNewImgFileName "ClipboardImage"]
-            WriteInfoStr "Pasted image from clipboard" "OK"
+            WriteInfoStr "Pasted image from clipboard in format $fmtName" "OK"
         } else {
             WriteInfoStr "$phImg" "Error"
         }
+    }
+
+    proc PastePathList {} {
+        variable sPo
+
+        set sPo(stopJob) 0
+        _PushInfoState
+        set pathList [poWinCapture GetPathList]
+        foreach path $pathList {
+            ReadImg $path
+            if { $sPo(stopJob) } {
+                WriteInfoStr "Image pasting stopped by user." "Warning"
+                break
+            }
+        }
+        _PopInfoState
     }
 
     proc SwapArrayElements { arr elem1 elem2 } {
@@ -4694,6 +5029,8 @@ namespace eval poImgview {
         SwapArrayElements sImg "thumbBtn,$elem1"     "thumbBtn,$elem2"
         SwapArrayElements sImg "photo,$elem1"        "photo,$elem2"
         SwapArrayElements sImg "name,$elem1"         "name,$elem2"
+        SwapArrayElements sImg "curPage,$elem1"      "curPage,$elem2"
+        SwapArrayElements sImg "numPages,$elem1"     "numPages,$elem2"
         SwapArrayElements sImg "poImg,$elem1"        "poImg,$elem2"
         SwapArrayElements sPo  "markImg,side,$elem1" "markImg,side,$elem2"
     }
@@ -4726,6 +5063,55 @@ namespace eval poImgview {
         SwapPackedWidgets $sPo(thumbFr) $next $cur
 
         SetCurImgNum $next
+    }
+
+    proc ShowPage { pageNum } {
+        variable sImg
+        variable sPo
+
+        set curPage $sImg(curPage,[GetCurImgNum])
+        if { $pageNum eq "prev" || $pageNum eq "next" } {
+            set increment 1
+            if { $pageNum eq "prev" } {
+                set increment -1
+            }
+            set curPage [expr $curPage + $increment]
+            set curPage [poMisc Max $curPage 0]
+            set curPage [poMisc Min $curPage [expr $sImg(numPages,[GetCurImgNum]) -1]]
+        } elseif { $pageNum eq "end" } {
+            set curPage [expr $sImg(numPages,[GetCurImgNum]) -1]
+        } else {
+            if { $pageNum >= 0 && $pageNum < $sImg(numPages,[GetCurImgNum]) } {
+                set curPage $pageNum
+            }
+        }
+        set sImg(curPage,[GetCurImgNum]) $curPage
+        set sPo(curPage) [expr $curPage + 1]
+
+        set imgName [GetCurImgName]
+        set ext [file extension $imgName]
+        set fmtStr [poImgType GetFmtByExt $ext]
+        set optStr [poImgType GetOptByFmt $fmtStr "read"]
+        append optStr " -index $curPage"
+        poWatch Reset swatch
+
+        set retVal [catch {poImgMisc LoadImg $imgName $optStr} imgDict]
+        if { $retVal == 0 } {
+            set curImg [GetCurImgNum]
+            image delete [GetCurImgPhoto]
+            set phImg [dict get $imgDict phImg]
+            set sImg(photo,$curImg) $phImg
+            WriteInfoStr [format "Display page %d (%.2f sec)" \
+                         [expr $curPage + 1] [poWatch Lookup swatch]] "Ok"
+            ShowImg $curImg
+            UpdateThumb [GetImgPhoto $curImg]
+        }
+    }
+
+    proc ShowPageByEntry {} {
+        variable sPo
+
+        ShowPage [expr $sPo(curPage) - 1]
     }
 
     proc ShowImgByName { phImg } {
@@ -4823,8 +5209,8 @@ namespace eval poImgview {
             focus $sPo(tw)
             return
         }
-        set numChan   [poImgDict GetNumChannels sImg(rawDict,$cur)]
-        set pixelSize [poImgDict GetPixelSize   sImg(rawDict,$cur)]
+        set numChan   [pawt GetImageNumChannels sImg(rawDict,$cur)]
+        set pixelSize [pawt GetImagePixelSize   sImg(rawDict,$cur)]
         if { ! ($numChan == 1 && $pixelSize == 2) } {
             tk_messageBox -message "Palette display only possible for 16-bit images with 1 channel." \
                           -type ok -icon warning
@@ -4835,11 +5221,11 @@ namespace eval poImgview {
         set phImg [GetCurImgPhoto]
         poWatch Reset swatch
 
-        if { $mode eq "Greyscale" } {
+        if { $mode eq "greyscale" } {
             set imgDict [poImgMisc LoadImg [GetCurImgName]]
             set newImg  [dict get $imgDict phImg]
         } else {
-            set newImg [poImgDict CreatePseudoColorPhoto $sImg(rawDict,$cur) $mode]
+            set newImg [pawt GetImageAsPseudoColorPhoto sImg(rawDict,$cur) -mode $mode]
         }
         WriteInfoStr [format "$mode image (%.2f sec)" [poWatch Lookup swatch]] "Ok"
 
@@ -4984,8 +5370,6 @@ namespace eval poImgview {
             WriteInfoStr "Apply logo: No images loaded" "Error"
             return
         }
-        $sPo(mainCanv) config -cursor watch
-        update
 
         lassign [poMisc RgbToDec $sLogo(color)] r g b
         set sr [expr $r / 255.0]
@@ -4998,33 +5382,29 @@ namespace eval poImgview {
         set ix2 [expr int ([lindex $ic 2] / $sPo(zoom))]
         set iy2 [expr int ([lindex $ic 3] / $sPo(zoom))]
 
-        set cur [GetCurImgNum]
         if { [poApps GetVerbose] } {
             puts "Add logo to image [GetCurImgName]"
         }
         poWatch Reset swatch
+        set phImg [image create photo]
+        set poImg ""
         if { [poImgAppearance UsePoImg] } {
-            if { ! [info exists sImg(poImg,$cur)] } {
-                set sImg(poImg,$cur) [poImage NewImageFromPhoto [GetCurImgPhoto]]
-            }
-            set img $sImg(poImg,$cur)
-            $img ApplyLogo $sLogo(poImg) $ix1 $iy1 $sr $sg $sb $sPo(license)
-            $img AsPhoto [GetCurImgPhoto]
+            set poImg [poImage NewImageFromPhoto [GetCurImgPhoto]]
+            $poImg ApplyLogo $sLogo(poImg) $ix1 $iy1 $sr $sg $sb
+            $poImg AsPhoto $phImg
         } else {
-            set phImg [GetCurImgPhoto]
+            $phImg copy [GetCurImgPhoto]
             $phImg copy $sLogo(photo) -to $ix1 $iy1
         }
         WriteInfoStr [format "Apply logo (%.2f sec)" [poWatch Lookup swatch]] "Ok"
-        ShowImg $cur
-        UpdateThumb [GetCurImgPhoto]
-        $sPo(mainCanv) config -cursor $sPo(curCursor)
+        return [AddImg $phImg $poImg [GetCurImgName]]
     }
 
     proc ApplyLogoAll {} {
-        ShowFirst
-        for { set i 0 } { $i < [GetNumImgs] } { incr i } {
+        set numImgs [GetNumImgs]
+        for { set i 0 } { $i < $numImgs } { incr i } {
+            SetCurImgNum $i
             ApplyLogo
-            ShowNext
         }
     }
 
@@ -5054,14 +5434,18 @@ namespace eval poImgview {
         variable sPo
         variable sLogo
 
-        if { [poApps GetAutosaveOnExit] } {
-            SaveSettings
+        if { ! [info exists sPo(tw)] || ! [winfo exists $sPo(tw)] } {
+            return
         }
-        DelAll
 
+        DelAll
         catch { image delete $sLogo(photo) }
         if { [poImgAppearance UsePoImg] && [info exists sLogo(poImg)] } {
             poImgUtil DeleteImg $sLogo(poImg)
+        }
+
+        if { [poApps GetAutosaveOnExit] } {
+            SaveSettings
         }
 
         # Delete (potentially open) sub-toplevels of this application.
@@ -5075,7 +5459,6 @@ namespace eval poImgview {
     }
 
     proc ExitApp {} {
-        CloseAppWindow
         poApps ExitApp
     }
 
@@ -5097,9 +5480,6 @@ namespace eval poImgview {
             if { $typeExt ne $fileExt } {
                 set initFile [file rootname $initFile]
             }
-            if { ! [info exists sPo(lastDir)] } {
-                set sPo(lastDir) [file dirname $sPo(lastFile)]
-            }
             set fileName [tk_getSaveFile \
                          -filetypes $fileTypes \
                          -title "Save image as" \
@@ -5107,7 +5487,7 @@ namespace eval poImgview {
                          -confirmoverwrite false \
                          -typevariable ${ns}::sPo(LastImgType) \
                          -initialfile [file tail $initFile] \
-                         -initialdir $sPo(lastDir)]
+                         -initialdir  [file dirname $initFile]]
             if { $fileName ne "" && ! [poMisc IsValidExtension $fileTypes [file extension $fileName]] } {
                 set ext [poMisc GetExtensionByType $fileTypes $sPo(LastImgType)]
                 if { $ext ne "*" } {
@@ -5122,13 +5502,13 @@ namespace eval poImgview {
                 if { $retVal eq "no" } {
                     set fileName ""
                 }
-                if { $fileName ne "" } {
-                    set sPo(lastDir) [file dirname $fileName]
-                }
             }
         } else {
             set fileName [tk_getOpenFile -filetypes $fileTypes \
                          -initialdir [file dirname $sPo(lastFile)]]
+        }
+        if { $fileName ne "" } {
+            set sPo(lastDir) [file dirname $fileName]
         }
         return $fileName
     }
@@ -5252,7 +5632,6 @@ namespace eval poImgview {
             WriteInfoStr "Error reading image: $imgDict" "Error"
         }
         $canvasId config -cursor $sPo(curCursor)
-        event generate $sPo(fileCombo) <Key-Escape>
         return $imgDict
     }
 
@@ -5380,33 +5759,31 @@ namespace eval poImgview {
         set sPo(imgsInDir,max)   0
         set sPo(imgsInDir,dir)   ""
         set sPo(imgsInDir,files) [list]
-        if { [file isfile $curFile] || [file isdirectory $curFile] } {
-            if { [file isfile $curFile] } {
-                set dirName [file dirname $curFile]
-            } else {
-                set dirName $curFile
-            }
-            set fileList [lsort -dictionary [lindex [poMisc GetDirsAndFiles $dirName -showdirs false] 1] ]
-            foreach ext [poImgType GetExtList ""] {
-                lappend matchList [format "*%s" $ext]
-            }
-            foreach f $fileList {
-                foreach patt $matchList {
-                    if { [string match -nocase $patt $f] } {
-                        lappend sPo(imgsInDir,files) $f
-                        break
-                    }
+        if { [file isdirectory $curFile] } {
+            set dirName $curFile
+        } else {
+            set dirName [file dirname $curFile]
+        }
+        set fileList [lsort -dictionary [lindex [poMisc GetDirsAndFiles $dirName -showdirs false] 1] ]
+        foreach ext [poImgType GetExtList ""] {
+            lappend matchList [format "*%s" $ext]
+        }
+        foreach f $fileList {
+            foreach patt $matchList {
+                if { [string match -nocase $patt $f] } {
+                    lappend sPo(imgsInDir,files) $f
+                    break
                 }
             }
-            if { [file isfile $curFile] } {
-                set imgInd [lsearch -exact $sPo(imgsInDir,files) [file tail $curFile]]
-            } else {
-                set imgInd 0
-            }
-            set sPo(imgsInDir,cur) [expr { $imgInd + 1 }]
-            set sPo(imgsInDir,max) [llength $sPo(imgsInDir,files)]
-            set sPo(imgsInDir,dir) $dirName
         }
+        if { [file isfile $curFile] } {
+            set imgInd [lsearch -exact $sPo(imgsInDir,files) [file tail $curFile]]
+        } else {
+            set imgInd 0
+        }
+        set sPo(imgsInDir,cur) [expr { $imgInd + 1 }]
+        set sPo(imgsInDir,max) [llength $sPo(imgsInDir,files)]
+        set sPo(imgsInDir,dir) $dirName
     }
 
     proc LoadNextImg { { dir "" } } {
@@ -5679,7 +6056,7 @@ namespace eval poImgview {
     proc BrowseDted {} {
         variable sPo
 
-        if { ! [poApps HavePkg "Img"] } {
+        if { ! [poMisc HavePkg "Img"] } {
             tk_messageBox -title "Information" -type ok -icon info \
                 -message "Dted browsing needs the Img extension.\n\
                           See Help->About Tcl/Tk for download address."
@@ -5714,7 +6091,7 @@ namespace eval poImgview {
         } else {
             set optStr $sConv(outFmtOpt)
         }
-        set retVal [catch { $sImg(photo,$sImg(curNo)) write $imgName -format "$fmtStr $optStr" } errMsg]
+        set retVal [catch { $sImg(photo,$sImg(curNo)) write $imgName -format [list $fmtStr {*}$optStr] } errMsg]
         if { $retVal != 0 } {
             WriteInfoStr "Error saving image: $errMsg" "Error"
         } else {
@@ -5734,7 +6111,7 @@ namespace eval poImgview {
         $sPo(mainCanv) config -cursor watch
         WriteInfoStr "Capturing window ..." "Watch"
         update
-        set phImg [poWin Windows2Img $sPo(tw)]
+        set phImg [poWinCapture Windows2Img $sPo(tw)]
         set retVal [AddImg $phImg "" $defName]
         WriteInfoStr "Window captured" "Ok"
         $sPo(mainCanv) config -cursor $sPo(curCursor)
@@ -5752,20 +6129,33 @@ namespace eval poImgview {
         $sPo(mainCanv) config -cursor watch
         WriteInfoStr "Capturing canvas ..." "Watch"
         update
-        set phImg [poWin Canvas2Img $sPo(mainCanv)]
+        set phImg [poWinCapture Canvas2Img $sPo(mainCanv)]
         set retVal [AddImg $phImg "" $defName]
         WriteInfoStr "Canvas captured" "Ok"
         $sPo(mainCanv) config -cursor $sPo(curCursor)
         return $retVal
     }
 
-    proc SaveAs {} {
+    proc SaveOrigDir {} {
         variable sImg
 
         if { ! [HaveImgs] } {
             return
         }
         set imgName [GetFileName "save" [GetCurImgName]]
+        if { $imgName ne "" } {
+            SaveImg $imgName
+        }
+    }
+
+    proc SaveAs {} {
+        variable sPo
+        variable sImg
+
+        if { ! [HaveImgs] } {
+            return
+        }
+        set imgName [GetFileName "save" [file join $sPo(lastDir) [file tail [GetCurImgName]]]]
         if { $imgName ne "" } {
             SaveImg $imgName
         }
@@ -5926,7 +6316,7 @@ namespace eval poImgview {
         set sPo(curPal,name) ""
     }
 
-    proc PrintPixelValue { canvasId x y } {
+    proc PrintPixelValue { canvasId x y printLog } {
         variable sPo
         variable sImg
 
@@ -5994,7 +6384,20 @@ namespace eval poImgview {
                 }
                 set curImgNum [GetCurImgNum]
                 if { [info exists sImg(rawDict,$curImgNum)] } {
-                    set sPo(curCol,raw) [poImgDict GetPixelValueAsString sImg(rawDict,$curImgNum) $px $py]
+                    set sPo(curCol,raw) [pawt GetImagePixelAsString sImg(rawDict,$curImgNum) $px $py]
+                }
+                if { $printLog } {
+                    if { [info exists rgbHex] } {
+                        set sPo(transpCol,hex) $rgbHex
+                        $sPo(transpCol,widget) configure -background $rgbHex
+                    }
+                    if { [poLog GetShowConsole] } {
+                        if { [poMisc HaveTcl87OrNewer] } {
+                            puts "$sPo(curPos,x) $sPo(curPos,y): $sPo(curCol,r) $sPo(curCol,g) $sPo(curCol,b) $sPo(curCol,a)"
+                        } else {
+                            puts "$sPo(curPos,x) $sPo(curPos,y): $sPo(curCol,r) $sPo(curCol,g) $sPo(curCol,b)"
+                        }
+                    }
                 }
             } else {
                 ClearPixelValue
@@ -6036,13 +6439,14 @@ namespace eval poImgview {
         append msg "                        Default: \"$sConv(name)\".\n"
         append msg "--convnum <int>       : Start value for filename numbering while converting.\n"
         append msg "                        Default: $sConv(num).\n"
-        append msg "--convdir <dir>       : Directory for converted image files.\n"
+        append msg "--convdir <string>    : Directory name for converted image files.\n"
         append msg "                        Default: \"$outDir\".\n"
         append msg "--palettefile <string>: Use specified palette file for mapping images.\n"
 
         append msg "\n"
         append msg "Processing of multiple images into one image:\n"
-        append msg "--equalsize          : All supplied images are of equal size. Hint for compose algorithmn.\n"
+        append msg "--equalsize          : All supplied images are of equal size.\n"
+        append msg "                       Hint for compose algorithmn.\n"
         append msg "--compose <int>      : Compose supplied image files into one image.\n"
         append msg "                       The images are arranged left to right, top to bottom,\n"
         append msg "                       assuming specified number of columns.\n"
@@ -6052,7 +6456,7 @@ namespace eval poImgview {
         append msg "--logo               : Put logo onto images.\n"
         append msg "                       Default: No\n"
         append msg "--crop <x1 y1 x2 y2> : Crop image to given rectangle.\n"
-        append msg "                       <x1, y1> specify top-left corner.\n"
+        append msg "                       <x1, y1> is the top-left corner of the rectangle.\n"
         append msg "                       Default: No cropping.\n"
         append msg "--scale <x y>        : Scale image to given size. Append a \"%\" to the numbers\n"
         append msg "                       to specify new size in percentages.\n"
@@ -6066,9 +6470,9 @@ namespace eval poImgview {
         }
         append msg "--countcolors        : Find unique colors in image and print count to stdout.\n"
         append msg "                       If verbose mode is on, all unique colors are printed.\n"
-        append msg "--palettemap <mode>  : Map loaded images according to specified palette file.\n"
-        append msg "                       If <mode> is \"map\", indices are mapped to color images.\n"
-        append msg "                       If <mode> is \"inv\", color images are mapped to index images.\n"
+        append msg "--palettemap <string>: Mapping mode of loaded images according to used palette.\n"
+        append msg "                       Mode \"map\": Indices are mapped to color images.\n"
+        append msg "                       Mode \"inv\": Color images are mapped to indices.\n"
         append msg "                       Specify option \"--batch\" to perform in batch mode.\n"
         append msg "--histogram          : Print histogram values to stdout in CSV format.\n"
         append msg "--rawinfo            : Print RAW image information to stdout in CSV format.\n"
@@ -6086,10 +6490,10 @@ namespace eval poImgview {
         poWin CreateHelpWin $msg "Help for $sPo(appName)"
     }
 
-    proc StopJob {} {
+    proc StopJob { { onOff 1 } } {
         variable sPo
 
-        set sPo(stopJob) 1
+        set sPo(stopJob) $onOff
         focus $sPo(tw)
     }
 

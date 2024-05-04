@@ -1,5 +1,5 @@
 # Module:         poExtProg
-# Copyright:      Paul Obermeier 2001-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2001-2023 / paul@poSoft.de
 # First Version:  2001 / 07 / 06
 #
 # Distributed under BSD license.
@@ -15,7 +15,9 @@ namespace eval poExtProg {
     namespace export OpenWin OkWin CancelWin
     namespace export SupportsAsso
     namespace export StartAssoProg StartEditProg StartOneEditProg StartDiffProg StartHexEditProg
-    namespace export DumpFileIntoTextWidget LoadFileIntoTextWidget SaveTextWidgetToFile
+    namespace export DumpFileIntoTextWidget DumpStringIntoTextWidget
+    namespace export LoadFileIntoTextWidget LoadStringIntoTextWidget
+    namespace export SaveTextWidgetToFile
     namespace export StopDump
     namespace export ShowSimpleTextEdit ShowSimpleHexEdit
     namespace export ShowSimpleTextDiff ShowSimpleHexDiff ShowTkDiffHexDiff
@@ -250,11 +252,6 @@ namespace eval poExtProg {
         set sExt(stopDump) 1
     }
 
-    proc GetTopLevel { widgetName } {
-        regexp -- {\.[A-z,0-9]*} $widgetName topName
-        return $topName
-    }
-
     proc CloseSimpleTextEdit { w } {
         variable sExt
 
@@ -270,16 +267,18 @@ namespace eval poExtProg {
             }
         }
         if { $sExt($w,useToplevel) } {
-            destroy [GetTopLevel $w]
+            destroy [poWin GetRootWidget $w]
         }
     }
 
-    proc SetTitle { w title } {
+    proc SetTitle { w title { widgetTitle true } { windowTitle true } } {
         variable sExt
 
-        poWin SetScrolledTitle $w $title
-        if { $sExt($w,useToplevel) } {
-            wm title [GetTopLevel $w] [format "%s" $title]
+        if { $widgetTitle } {
+            poWin SetScrolledTitle $w $title
+        }
+        if { $windowTitle && $sExt($w,useToplevel) } {
+            wm title [poWin GetRootWidget $w] [format "%s" $title]
         }
     }
 
@@ -287,11 +286,11 @@ namespace eval poExtProg {
         variable sExt
 
         if { [$w edit modified] && $hasChanged } {
-            set title [format "%s +" $sExt($w,fileName)]
-            SetTitle $w $title
+            set title [format "SimpleEdit: %s +" [file tail $sExt($w,fileName)]]
+            SetTitle $w $title false true
         } else {
-            set title [format "%s" $sExt($w,fileName)]
-            SetTitle $w $title
+            set title [format "SimpleEdit: %s" [file tail $sExt($w,fileName)]]
+            SetTitle $w $title false true
         }
     }
 
@@ -321,7 +320,9 @@ namespace eval poExtProg {
         if { $selFont ne "" } {
             set sExt(Font,$mode) $selFont
             UpdateFonts $mode
-            $w configure -font $selFont
+            if { [winfo exists $w] } {
+                $w configure -font $selFont
+            }
         }
     }
 
@@ -402,8 +403,8 @@ namespace eval poExtProg {
             $sExt($textId,btn,prev)  configure -state disabled
         }
         if { $curIndex == [expr [llength $sExt(indices)] -1] } {
-            $sExt($textId,btn,last) configure  -state disabled
-            $sExt($textId,btn,next)  configure -state disabled
+            $sExt($textId,btn,last) configure -state disabled
+            $sExt($textId,btn,next) configure -state disabled
         }
     }
 
@@ -549,9 +550,74 @@ namespace eval poExtProg {
         }
     }
 
-    proc LoadFileIntoTextWidget { w fileName { maxBytes -1 } } {
+    proc LoadStringIntoTextWidget { w str args } {
         variable ns
         variable sExt
+
+        # Set default values for optional parameters.
+        set opts [dict create \
+            -maxbytes -1      \
+            -clear    true    \
+        ]
+
+        foreach { key value } $args {
+            if { [dict exists $opts $key] } {
+                dict set opts $key $value
+            } else {
+                error "LoadStringIntoTextWidget: Unknown option \"$key\" specified"
+            }
+        }
+        set maxBytes  [dict get $opts "-maxbytes"]
+        set clearFlag [dict get $opts "-clear"]
+
+        set numBytesString [string length $str]
+        if { $maxBytes < 0 } {
+            set maxBytes $numBytesString
+        }
+
+        set curState [$w cget -state]
+        $w configure -state normal
+        if { $clearFlag } {
+            $w delete 1.0 end
+        }
+        $w insert end [string range $str 0 $maxBytes]
+
+        if { $maxBytes < $numBytesString } {
+            ttk::button $w.b -text "Load complete string" -command [list ${ns}::LoadStringIntoTextWidget $w $str]
+            $w insert end "\n"
+            $w window create end -window $w.b
+        }
+        $w configure -state $curState
+        $w edit reset
+        $w edit modified false
+        set sExt($w,changed) false
+        if { [info exists sExt($w,WrapLines)] } {
+            $w configure -wrap $sExt($w,WrapLines)
+        }
+        if { [info exists sExt($w,ShowLineNumbers)] && $sExt($w,ShowLineNumbers) } {
+            ShowLineNumbers $w true
+        }
+    }
+
+    proc LoadFileIntoTextWidget { w fileName args } {
+        variable ns
+        variable sExt
+
+        # Set default values for optional parameters.
+        set opts [dict create \
+            -maxbytes -1      \
+            -clear    true    \
+        ]
+
+        foreach { key value } $args {
+            if { [dict exists $opts $key] } {
+                dict set opts $key $value
+            } else {
+                error "LoadFileIntoTextWidget: Unknown option \"$key\" specified"
+            }
+        }
+        set maxBytes  [dict get $opts "-maxbytes"]
+        set clearFlag [dict get $opts "-clear"]
 
         set retVal [catch {open $fileName r} fp]
         if { $retVal != 0 } {
@@ -570,24 +636,30 @@ namespace eval poExtProg {
 
         set curState [$w cget -state]
         $w configure -state normal
-        $w delete 1.0 end
-        set numBytesRead 0
-        while { ! [eof $fp] && $numBytesRead <= $maxBytes } {
-            $w insert end [read $fp $numBytesPerRead]
-            incr numBytesRead $numBytesPerRead
+        if { $clearFlag } {
+            $w delete 1.0 end
         }
-        if { ! [eof $fp] } {
-            ttk::button $w.b -text "Load complete file" -command "${ns}::LoadFileIntoTextWidget $w \"$fileName\""
-            $w insert end "\n"
-            $w window create end -window $w.b
+        set numBytesRead 0
+        if { $numBytesFile > 0 } {
+            while { ! [eof $fp] && $numBytesRead <= $maxBytes } {
+                $w insert end [read $fp $numBytesPerRead]
+                incr numBytesRead $numBytesPerRead
+            }
+            if { ! [eof $fp] } {
+                ttk::button $w.b -text "Load complete file" -command "${ns}::LoadFileIntoTextWidget $w \"$fileName\""
+                $w insert end "\n"
+                $w window create end -window $w.b
+            }
         }
         $w configure -state $curState
         close $fp
         $w edit reset
         $w edit modified false
         set sExt($w,changed) false
-        $w configure -wrap $sExt($w,WrapLines)
-        if { $sExt($w,ShowLineNumbers) } {
+        if { [info exists sExt($w,WrapLines)] } {
+            $w configure -wrap $sExt($w,WrapLines)
+        }
+        if { [info exists sExt($w,ShowLineNumbers)] && $sExt($w,ShowLineNumbers) } {
             ShowLineNumbers $w true
         }
     }
@@ -604,7 +676,7 @@ namespace eval poExtProg {
         # If line numbering is on, switch it off temporary
         # and switch it on back after writing.
         set haveLineNumbers false
-        if { $sExt($w,ShowLineNumbers) } {
+        if { [info exists sExt($w,ShowLineNumbers)] && $sExt($w,ShowLineNumbers) } {
             set haveLineNumbers true
             ShowLineNumbers $w false
         }
@@ -681,9 +753,121 @@ namespace eval poExtProg {
         }
     }
 
-    proc DumpFileIntoTextWidget { w fileName { updFlag false } { maxBytes -1 } } {
+    proc DumpStringIntoTextWidget { w str args } {
         variable ns
         variable sExt
+
+        # Set default values for optional parameters.
+        set opts [dict create \
+            -maxbytes -1      \
+            -clear    true    \
+            -update   false   \
+        ]
+
+        foreach { key value } $args {
+            if { [dict exists $opts $key] } {
+                dict set opts $key $value
+            } else {
+                error "DumpStringIntoTextWidget: Unknown option \"$key\" specified"
+            }
+        }
+        set maxBytes  [dict get $opts "-maxbytes"]
+        set clearFlag [dict get $opts "-clear"]
+        set updFlag   [dict get $opts "-update"]
+
+        set numBytesString [string length $str]
+        set bytesToRead $maxBytes
+        if { $bytesToRead > $numBytesString } {
+            set bytesToRead $numBytesString
+        }
+        if { $maxBytes < 0 } {
+            set bytesToRead $numBytesString
+        }
+
+        if { $updFlag } {
+            set sExt(stopDump) 0
+            bind $w <Escape> "${ns}::StopDump"
+        }
+        set curState [$w cget -state]
+        $w configure -state normal
+        if { $clearFlag } {
+            $w delete 1.0 end
+        }
+        set curPos 0
+        while { $curPos < $bytesToRead } {
+            # Read 16 bytes from the string.
+            set s [string range $str $curPos [expr { $curPos + 15 }]]
+
+            # Convert the data to hex and to characters.
+            binary scan $s H*@0a* hex ascii
+
+            # Replace non-printing characters in the data.
+            regsub -all -- {[^[:graph:] ]} $ascii {.} ascii
+
+            # Split the 16 bytes into two 8-byte chunks
+            set hex1 [string range $hex 0 15]
+            set hex2 [string range $hex 16 31]
+
+            # Convert the hex to pairs of hex digits
+            regsub -all -- {..} $hex1 {& } hex1
+            regsub -all -- {..} $hex2 {& } hex2
+
+            # Put the hex and Latin-1 data to the channel
+            set hexStr [format "%08X  %-24s %-24s %-16s\n" \
+                                $curPos $hex1 $hex2 $ascii]
+            $w insert end $hexStr
+            incr curPos 16
+
+            if { $curPos >= $bytesToRead } {
+                break
+            }
+            if { $updFlag } {
+                $w see end
+                if { $curPos % 65536 == 0 } {
+                    update
+                }
+                if { $sExt(stopDump) } {
+                    break
+                }
+            }
+        }
+
+        if { $maxBytes >= 0 && $numBytesString > $curPos } {
+            ttk::button $w.b -text "Load complete string" \
+                             -command [list ${ns}::DumpStringIntoTextWidget $w $str -update $updFlag]
+            $w insert end "\n"
+            $w window create end -window $w.b
+            if { $updFlag } {
+                $w see end
+            }
+        }
+        $w configure -state $curState
+        $w edit reset
+        $w edit modified false
+        set sExt($w,changed) false
+    }
+
+    proc DumpFileIntoTextWidget { w fileName args } {
+        variable ns
+        variable sExt
+
+        # Set default values for optional parameters.
+        set opts [dict create \
+            -maxbytes -1      \
+            -clear    true    \
+            -update   false   \
+        ]
+
+        foreach { key value } $args {
+            if { [dict exists $opts $key] } {
+                dict set opts $key $value
+            } else {
+                error "DumpFileIntoTextWidget: Unknown option \"$key\" specified"
+            }
+        }
+        set maxBytes  [dict get $opts "-maxbytes"]
+        set clearFlag [dict get $opts "-clear"]
+        set updFlag   [dict get $opts "-update"]
 
         # Open the file, and set up to process it in binary mode.
         set catchVal [catch { open $fileName r } fp]
@@ -705,7 +889,9 @@ namespace eval poExtProg {
         }
         set curState [$w cget -state]
         $w configure -state normal
-        $w delete 1.0 end
+        if { $clearFlag } {
+            $w delete 1.0 end
+        }
         set numBytesRead 0
         while { ! [eof $fp] } {
             # Record the seek address. Read 16 bytes from the file.
@@ -748,7 +934,7 @@ namespace eval poExtProg {
 
         if { $maxBytes >= 0 && $numBytesFile != $numBytesRead } {
             ttk::button $w.b -text "Load complete file" \
-                             -command "${ns}::DumpFileIntoTextWidget $w \"$fileName\" $updFlag"
+                             -command "${ns}::DumpFileIntoTextWidget $w \"$fileName\" $args -maxbytes -1"
             $w insert end "\n"
             $w window create end -window $w.b
             if { $updFlag } {
@@ -800,8 +986,8 @@ namespace eval poExtProg {
         LoadFileIntoTextWidget $textId1 $fileName1
         LoadFileIntoTextWidget $textId2 $fileName2
 
-        $textId1 configure -state disabled -cursor top_left_arrow
-        $textId2 configure -state disabled -cursor top_left_arrow
+        $textId1 configure -state disabled -cursor arrow
+        $textId2 configure -state disabled -cursor arrow
         focus $tw
     }
 
@@ -847,12 +1033,12 @@ namespace eval poExtProg {
         $textId2 configure -font [poWin GetFixedFont]
         update
 
-        DumpFileIntoTextWidget $textId1 $fileName1 true
-        DumpFileIntoTextWidget $textId2 $fileName2 true
+        DumpFileIntoTextWidget $textId1 $fileName1 -update true
+        DumpFileIntoTextWidget $textId2 $fileName2 -update true
 
         $textId1 configure -state disabled
         $textId2 configure -state disabled
-        $tw configure -cursor top_left_arrow
+        $tw configure -cursor arrow
     }
 
     proc ShowTkDiffHexDiff { fileName1 fileName2 } {
@@ -866,7 +1052,7 @@ namespace eval poExtProg {
         poMisc HexDumpToFile $fileName1 $tmpFileName1
         poMisc HexDumpToFile $fileName2 $tmpFileName2
 
-        ShowTkDiff [list $tmpFileName1 $tmpFileName2]
+        ShowTkDiff [list $tmpFileName1 $tmpFileName2] true
     }
 
     proc _UpdateCombo { cb typeList showInd } {
@@ -1095,7 +1281,7 @@ namespace eval poExtProg {
         if { $retVal != 0 } {
             poWin SetScrolledTitle $textId "$fileName (Not existent)"
         }
-        $textId configure -cursor top_left_arrow
+        $textId configure -cursor arrow
         focus $tw
 
         set sExt($textId,useToplevel) $useToplevel
@@ -1166,60 +1352,79 @@ namespace eval poExtProg {
 
         set sExt(stopDump) 1
         update
-        destroy $w
+        if { $sExt($w,useToplevel) } {
+            destroy [poWin GetRootWidget $w]
+        }
     }
 
-    proc ShowSimpleHexEdit { fileName } {
+    proc ShowSimpleHexEdit { fileName { tw "" } { showButtons false } args } {
         variable ns
         variable sExt
 
         incr sExt(hexCount)
 
+        set useToplevel false
+
         set titleStr "SimpleHexEdit: [file tail $fileName]"
-        set tw ".poExtProgSimpleHexEdit$sExt(hexCount)"
 
-        toplevel $tw
-        wm title $tw $titleStr
+        if { $tw eq "" } {
+            set useToplevel true
 
-        ttk::frame $tw.toolfr -relief groove -borderwidth 1
-        pack $tw.toolfr -side top -fill x
+            set tw ".poExtProgSimpleHexEdit$sExt(hexCount)"
 
-        ttk::frame $tw.workfr -relief sunken -borderwidth 1
+            toplevel $tw
+            wm title $tw $titleStr
+        }
+
+        if { $showButtons } {
+            ttk::frame $tw.toolfr -relief groove -borderwidth 1
+            pack $tw.toolfr -side top -fill x
+        }
+        ttk::frame $tw.workfr -relief ridge -borderwidth 1
         pack $tw.workfr -side top -fill both -expand 1
 
-        set hMenu $tw.menufr
-        menu $hMenu -borderwidth 2 -relief sunken
-        $hMenu add cascade -menu $hMenu.file -label File -underline 0
+        set textId [poWin CreateScrolledText $tw.workfr true "$fileName" {*}$args -wrap none -font [poWin GetFixedFont]]
 
-        set textId [poWin CreateScrolledText $tw.workfr true "$fileName" -wrap none]
+        if { $useToplevel } {
+            set hMenu $tw.menufr
+            menu $hMenu -borderwidth 2 -relief sunken
+            $hMenu add cascade -menu $hMenu.file -label File -underline 0
 
-        set fileMenu $hMenu.file
-        menu $fileMenu -tearoff 0
-        poMenu AddCommand $fileMenu "Save as ..." "Ctrl+S" "${ns}::SaveHexEdit $textId [list $fileName]"
-        poMenu AddCommand $fileMenu "Close"       "Ctrl+W" "${ns}::CloseHexEdit $tw"
+            set fileMenu $hMenu.file
+            menu $fileMenu -tearoff 0
+            poMenu AddCommand $fileMenu "Save as ..." "Ctrl+S" "${ns}::SaveHexEdit $textId [list $fileName]"
+            poMenu AddCommand $fileMenu "Close"       "Ctrl+W" "${ns}::CloseHexEdit $textId"
 
-        bind $tw <Control-s> "${ns}::SaveHexEdit $textId [list $fileName]"
-        bind $tw <Control-w> "${ns}::CloseHexEdit $tw"
-        wm protocol $tw WM_DELETE_WINDOW "${ns}::CloseHexEdit $tw"
+            bind $tw <Control-s> "${ns}::SaveHexEdit $textId [list $fileName]"
+            bind $tw <Control-w> "${ns}::CloseHexEdit $textId"
+            wm protocol $tw WM_DELETE_WINDOW "${ns}::CloseHexEdit $textId"
 
-        poToolbar New $tw.toolfr
-        poToolbar AddGroup $tw.toolfr
-        poToolbar AddButton $tw.toolfr [::poBmpData::save] \
-                  "${ns}::SaveHexEdit $textId [list $fileName]" "Save as ... (Ctrl+S)"
+            $tw configure -menu $hMenu
+        }
 
-        poToolbar AddGroup $tw.toolfr
-        poToolbar AddButton $tw.toolfr [::poBmpData::halt "red"] \
-                  ${ns}::StopDump "Stop file loading (Esc)"
+        if { $showButtons } {
+            poToolbar New $tw.toolfr
+            poToolbar AddGroup $tw.toolfr
+            poToolbar AddButton $tw.toolfr [::poBmpData::save] \
+                      "${ns}::SaveHexEdit $textId [list $fileName]" "Save as ... (Ctrl+S)"
 
-        $tw configure -menu $hMenu
-
+            poToolbar AddGroup $tw.toolfr
+            poToolbar AddButton $tw.toolfr [::poBmpData::halt "red"] \
+                      ${ns}::StopDump "Stop file loading (Esc)"
+        }
+        
         focus $textId
         $textId configure -cursor watch
-        $textId configure -font [poWin GetFixedFont]
+        set sExt($textId,useToplevel) $useToplevel
+
         update
 
-        DumpFileIntoTextWidget $textId $fileName true
-        catch {$textId configure -state disabled -cursor top_left_arrow}
+        set retVal [catch { DumpFileIntoTextWidget $textId $fileName -update true }]
+        if { $retVal != 0 } {
+            poWin SetScrolledTitle $textId "$fileName (Not existent)"
+        }
+        catch { $textId configure -state disabled -cursor arrow }
+        return $textId
     }
 
     proc SupportsAsso { } {
@@ -1262,8 +1467,10 @@ namespace eval poExtProg {
 
             set prog [poFileType GetEditProg $name]
             if { $prog eq "poImgview" && ! $assoc } {
-                poApps StartApp $prog $name
-                continue
+                if { [namespace exists ::poApps] } {
+                    poApps StartApp $prog $name
+                    continue
+                }
             }
             if { $prog ne "" } {
                 set prog [GetSpecificProg $prog]
@@ -1273,12 +1480,12 @@ namespace eval poExtProg {
                     set prog $env(EDITOR)
                 }
             }
-            if { ($prog eq "" || [auto_execok $prog] eq "") && ! $assoc } {
+            if { $prog eq "" && ! $assoc } {
                 ShowSimpleTextEdit $name "" true \
                     -width 80 -height 20 -wrap none -exportselection true \
                     -undo true -font [poWin GetFixedFont]
                 if { $infoCB ne "" } {
-                    $infoCB "No editor rule found for: $name" "Warning"
+                    $infoCB "No specific editor program found for: $name" "None"
                 }
                 continue
             }
@@ -1306,7 +1513,7 @@ namespace eval poExtProg {
                         eval exec [list $env(COMSPEC)] /c start \
                                   [list $nativeFileName] $fork
                     } else {
-                        eval exec command /c start [list $nativeFileName] $fork
+                        eval exec cmd /c start [list $nativeFileName] $fork
                     }
                 } elseif { $tcl_platform(os) eq "Darwin" } {
                     eval exec open $nativeFileName $fork
@@ -1316,7 +1523,7 @@ namespace eval poExtProg {
             } else {
                 if { $prog eq "" } {
                     if { $infoCB ne "" } {
-                        $infoCB "No editor rule found for: $name" "Warning"
+                        $infoCB "No specific edit program found for: $name" "None"
                     }
                     ShowSimpleTextEdit $name "" true \
                         -width 80 -height 20 -wrap none -exportselection true \
@@ -1325,7 +1532,11 @@ namespace eval poExtProg {
                     if { $infoCB ne "" } {
                         $infoCB "Loading file $name with program $prog" "Ok"
                     }
-                    eval exec $prog [list $name] $fork
+                    if { $tcl_platform(platform) eq "windows" } {
+                        eval exec $prog [list [file nativename $name]] $fork
+                    } else {
+                        eval exec $prog [list $name] $fork
+                    }
                 }
             }
         }
@@ -1337,8 +1548,10 @@ namespace eval poExtProg {
         set firstFile [lindex $fileList 0]
         set prog [poFileType GetEditProg $firstFile]
         if { $prog eq "poImgview" && ! $assoc } {
-            poApps StartApp $prog $fileList
-            return
+            if { [namespace exists ::poApps] } {
+                poApps StartApp $prog $fileList
+                return
+            }
         }
         if { $prog ne "" } {
             set prog [GetSpecificProg $prog]
@@ -1353,7 +1566,7 @@ namespace eval poExtProg {
                 -width 80 -height 20 -wrap none -exportselection true \
                 -undo true -font [poWin GetFixedFont]
             if { $infoCB ne "" } {
-                $infoCB "No editor rule found for: $firstFile" "Warning"
+                $infoCB "No specific edit program found for: $firstFile" "None"
             }
             return
         } else {
@@ -1365,18 +1578,25 @@ namespace eval poExtProg {
                     if {[file exists $env(COMSPEC)]} {
                         eval exec [list $env(COMSPEC)] /c start $fileList &
                     } else {
-                        eval exec command /c start $fileList &
+                        eval exec cmd /c start $fileList &
                     }
                 } elseif { $tcl_platform(os) eq "Darwin" } {
                     eval exec open $fileList &
                 } elseif { $tcl_platform(os) eq "Linux" } {
-                    eval exec xdg-open $fileList &
+                    eval exec xdg-open [lindex $fileList 0] &
                 }
             } else {
                 if { $infoCB ne "" } {
                     $infoCB "Loading files with program $prog" "Ok"
                 }
-                eval exec $prog $fileList &
+                if { $tcl_platform(platform) eq "windows" } {
+                    foreach f $fileList {
+                        lappend nativeList [file nativename $f]
+                    }
+                    eval exec $prog $nativeList &
+                } else {
+                    eval exec $prog $fileList &
+                }
             }
         }
     }
@@ -1405,9 +1625,9 @@ namespace eval poExtProg {
                 set prog [GetSpecificProg $prog]
             }
             if { $prog eq "" } {
-                ShowSimpleHexEdit $name
+                ShowSimpleHexEdit $name "" true
                 if { $infoCB ne "" } {
-                    $infoCB "No hexdump rule found for: $name" "Warning"
+                    $infoCB "No specific hexdump program found for: $name" "None"
                 }
                 continue
             }
@@ -1435,7 +1655,7 @@ namespace eval poExtProg {
         }
     }
 
-    proc ShowTkDiff { argList } {
+    proc ShowTkDiff { argList { removeFilesAtEnd false } } {
         variable sExt
 
         if { ! $sExt(tkdiffSourced) } {
@@ -1443,7 +1663,11 @@ namespace eval poExtProg {
                  [file isdirectory $starkit::topdir] } {
                 set libDir [file join $starkit::topdir "lib"]
             } else {
-                set libDir [poApps GetScriptDir]
+                if { [namespace exists ::poApps] } {
+                    set libDir [poApps GetScriptDir]
+                } else {
+                    error "No tkdiff program available."
+                }
             }
             uplevel #0 source [list [file join $libDir "tkdiff.tcl"]]
             set sExt(tkdiffSourced) 1
@@ -1463,7 +1687,7 @@ namespace eval poExtProg {
             }
             incr curArg
         }
-        tkdiff-main $leftFile $rightFile
+        tkdiff-main $leftFile $rightFile $removeFilesAtEnd
     }
 
     proc StartDiffProg { leftFileList rightFileList infoCB { serialize 0 } } {
@@ -1477,12 +1701,14 @@ namespace eval poExtProg {
 
             set prog [poFileType GetDiffProg $name1]
             if { $prog eq "poImgdiff" } {
-                poApps StartApp $prog [list $name1 $name2]
-                continue
-            } elseif { $prog eq "ExcelDiff" && [poApps HavePkg "cawt"] } {
+                if { [namespace exists ::poApps] } {
+                    poApps StartApp $prog [list $name1 $name2]
+                    continue
+                }
+            } elseif { $prog eq "ExcelDiff" && [poMisc HavePkg "cawt"] } {
                 eval ::Excel::DiffExcelFiles [list $name1 $name2]
                 continue
-            } elseif { $prog eq "WordDiff" && [poApps HavePkg "cawt"] } {
+            } elseif { $prog eq "WordDiff" && [poMisc HavePkg "cawt"] } {
                 eval ::Word::DiffWordFiles [list $name1 $name2]
                 continue
             }
@@ -1490,7 +1716,7 @@ namespace eval poExtProg {
                 set prog [GetSpecificProg $prog]
             }
             if { $prog eq "" } {
-                $infoCB "No diff rule found for: $name1" "Warning"
+                $infoCB "No specific diff program found for: $name1" "None"
                 if { ! [poType IsBinary $name1] && ! [poType IsBinary $name2] } {
                     ShowTkDiff [list $name1 $name2]
                 } else {
@@ -1525,14 +1751,14 @@ namespace eval poExtProg {
         if { $::tcl_platform(platform) eq "windows" } {
             set browserProg "explorer"
         } elseif { $::tcl_platform(os) eq "Linux" } {
-            foreach prog [list "dolphin" "konqueror" "nautilus"] {
+            foreach prog [list "dolphin" "konqueror" "nautilus"  "pcmanfm"] {
                 if { [auto_execok $prog] ne "" } {
                     set browserProg $prog
                     break
                 }
             }
             if { $browserProg eq "" } {
-                error "No file browser found. Looked for dolphin, konqueror and nautilus."
+                error "No file browser found. Looked for dolphin, konqueror, nautilus and pcmanfm."
             }
         } elseif { $::tcl_platform(os) eq "Darwin" } {
             set browserProg "open"
@@ -1553,7 +1779,7 @@ namespace eval poExtProg {
             if { [file exists $::env(COMSPEC)] } {
                 eval exec [list $::env(COMSPEC)] /c start [list $url] &
             } else {
-                eval exec command /c start [list $url] &
+                eval exec cmd /c start [list $url] &
             }
         } elseif { $::tcl_platform(os) eq "Darwin" } {
             eval exec open [list $url] &

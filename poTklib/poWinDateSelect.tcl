@@ -1,5 +1,5 @@
 # Module:         poWinDateSelect
-# Copyright:      Paul Obermeier 2014-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2014-2023 / paul@poSoft.de
 # First Version:  2014 / 09 / 06
 #
 # Distributed under BSD license.

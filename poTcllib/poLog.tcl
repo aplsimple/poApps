@@ -1,5 +1,5 @@
 # Module:         poLog
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 03 / 20
 #
 # Distributed under BSD license.
@@ -97,7 +97,7 @@ namespace eval poLog {
             catch { poConsole Create .poSoftConsole {po> } {poSoft Console} }
             set consoleMode 1
         } else {
-            catch { destroy .poSoft:console }
+            catch { destroy .poSoftConsole }
             set consoleMode 0
         }
     }

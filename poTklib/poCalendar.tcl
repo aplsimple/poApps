@@ -1,5 +1,5 @@
 # Module:         poCalendar
-# Copyright:      Paul Obermeier 2001-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2001-2023 / paul@poSoft.de
 # First Version:  2001 / 08 / 04
 #
 # Distributed under BSD license.
@@ -264,7 +264,7 @@ namespace eval poCalendar {
         weekdays,crx-lhe {Ji Jh WN WT WD Ts Sa}
  
         mn,de {
-        . Januar Februar März April Mai Juni Juli August
+        . Januar Februar MÃ¤rz April Mai Juni Juli August
         September Oktober November Dezember
         }
         weekdays,de {So Mo Di Mi Do Fr Sa}
@@ -282,21 +282,21 @@ namespace eval poCalendar {
         weekdays,es {Do Lu Ma Mi Ju Vi Sa}
  
         mn,fr {
-        . Janvier Février Mars Avril Mai Juin Juillet Août
-        Septembre Octobre Novembre Décembre
+        . Janvier FÃ©vrier Mars Avril Mai Juin Juillet AoÃ»t
+        Septembre Octobre Novembre DÃ©cembre
         }
         weekdays,fr {Di Lu Ma Me Je Ve Sa}
  
         mn,gr {
-        . Îııa??Ïıı?Ïıı??Ïıı FeßÏıı?Ïıı?Ïıı??Ïıı Îıı?ÏııÏıı??Ïıı ÎııÏııÏıı????Ïıı ÎııaÎıı?Ïıı Îıı?Ïıı???Ïıı Îıı?Ïıı???Ïıı ÎııÏıı??ÏııÏııÏıı?Ïıı
-        SeÏııÏııÎııµßÏıı??Ïıı Îıı?ÏııÏııµßÏıı??Ïıı Îıı?ÎııµßÏıı??Ïıı Îııe?ÎııµßÏıı??Ïıı
+        . ÃÃ½Ã½a??ÃÃ½Ã½?ÃÃ½Ã½??ÃÃ½Ã½ FeÃŸÃÃ½Ã½?ÃÃ½Ã½?ÃÃ½Ã½??ÃÃ½Ã½ ÃÃ½Ã½?ÃÃ½Ã½ÃÃ½Ã½??ÃÃ½Ã½ ÃÃ½Ã½ÃÃ½Ã½ÃÃ½Ã½????ÃÃ½Ã½ ÃÃ½Ã½aÃÃ½Ã½?ÃÃ½Ã½ ÃÃ½Ã½?ÃÃ½Ã½???ÃÃ½Ã½ ÃÃ½Ã½?ÃÃ½Ã½???ÃÃ½Ã½ ÃÃ½Ã½ÃÃ½Ã½??ÃÃ½Ã½ÃÃ½Ã½ÃÃ½Ã½?ÃÃ½Ã½
+        SeÃÃ½Ã½ÃÃ½Ã½ÃÃ½Ã½ÂµÃŸÃÃ½Ã½??ÃÃ½Ã½ ÃÃ½Ã½?ÃÃ½Ã½ÃÃ½Ã½ÂµÃŸÃÃ½Ã½??ÃÃ½Ã½ ÃÃ½Ã½?ÃÃ½Ã½ÂµÃŸÃÃ½Ã½??ÃÃ½Ã½ ÃÃ½Ã½e?ÃÃ½Ã½ÂµÃŸÃÃ½Ã½??ÃÃ½Ã½
         }
-        weekdays,gr {ÎııÏııÏıı ÎııeÏıı TÏıı? ?eÏıı Î eµ Î aÏıı Saß}
+        weekdays,gr {ÃÃ½Ã½ÃÃ½Ã½ÃÃ½Ã½ ÃÃ½Ã½eÃÃ½Ã½ TÃÃ½Ã½? ?eÃÃ½Ã½ Ã eÂµ Ã aÃÃ½Ã½ SaÃŸ}
  
         mn,he {
-         . ×ıı× ×ıı×ıı? ?×ıı?×ıı×ıı? ×ıı?? ×ıı??×ıı×ıı ×ıı×ıı×ıı ×ıı×ıı× ×ıı ×ıı×ıı×ıı×ıı ×ıı×ıı×ıı×ıı?×ıı ??×ıı×ıı×ıı? ×ıı×ıı?×ıı×ıı×ıı? × ×ıı×ıı×ıı×ıı? ×ıı?×ıı×ıı?
+         . Ã—Ã½Ã½Ã— Ã—Ã½Ã½Ã—Ã½Ã½? ?Ã—Ã½Ã½?Ã—Ã½Ã½Ã—Ã½Ã½? Ã—Ã½Ã½?? Ã—Ã½Ã½??Ã—Ã½Ã½Ã—Ã½Ã½ Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½ Ã—Ã½Ã½Ã—Ã½Ã½Ã— Ã—Ã½Ã½ Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½ Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½?Ã—Ã½Ã½ ??Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½? Ã—Ã½Ã½Ã—Ã½Ã½?Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½? Ã— Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½? Ã—Ã½Ã½?Ã—Ã½Ã½Ã—Ã½Ã½?
         }
-        weekdays,he {?×ıı?×ıı×ıı ?× ×ıı ?×ıı×ıı?×ıı ?×ıı×ıı?×ıı ×ıı×ıı×ıı?×ıı ?×ıı?×ıı ?×ıı?}
+        weekdays,he {?Ã—Ã½Ã½?Ã—Ã½Ã½Ã—Ã½Ã½ ?Ã— Ã—Ã½Ã½ ?Ã—Ã½Ã½Ã—Ã½Ã½?Ã—Ã½Ã½ ?Ã—Ã½Ã½Ã—Ã½Ã½?Ã—Ã½Ã½ Ã—Ã½Ã½Ã—Ã½Ã½Ã—Ã½Ã½?Ã—Ã½Ã½ ?Ã—Ã½Ã½?Ã—Ã½Ã½ ?Ã—Ã½Ã½?}
         mn,it {
         . Gennaio Febraio Marte Aprile Maggio Giugno Luglio Agosto
         Settembre Ottobre Novembre Dicembre
@@ -346,8 +346,8 @@ namespace eval poCalendar {
         }
         weekdays,zh {\u65e5 \u4e00 \u4e8c \u4e09 \u56db \u4e94 \u516d}
         mn,fi {
-          . Tammikuu Helmikuu Maaliskuu Huhtikuu Toukokuu Kesäkuu
-          Heinäkuu Elokuu Syyskuu Lokakuu Marraskuu Joulukuu
+          . Tammikuu Helmikuu Maaliskuu Huhtikuu Toukokuu KesÃ¤kuu
+          HeinÃ¤kuu Elokuu Syyskuu Lokakuu Marraskuu Joulukuu
         }
         weekdays,fi {Ma Ti Ke To Pe La Su}
         mn,tr {

@@ -1,5 +1,5 @@
 # Module:         poApps
-# Copyright:      Paul Obermeier 2013-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2013-2023 / paul@poSoft.de
 # First Version:  2013 / 03 / 30
 #
 # Distributed under BSD license.
@@ -18,10 +18,10 @@ namespace eval poApps {
     namespace export HelpCont HelpProg HelpTcl PkgInfo
     namespace export LoadSettings SaveSettings ViewSettingsDir
     namespace export AddEvents
-    namespace export StartApp ExitApp
+    namespace export ShowSysNotify
+    namespace export StartApp ExitApp GetToplevel
     namespace export GetAppName GetAppDescription GetAppDescriptionList
     namespace export IsValidAppName IsValidAppDescription
-    namespace export HavePkg GetPkgVersion
     namespace export GetUsageMsg PrintUsage 
     namespace export GetImgUsageMsg PrintImgUsage
     namespace export GetFileUsageMsg PrintFileUsage
@@ -29,17 +29,33 @@ namespace eval poApps {
     namespace export GetBuildInfo GetVersion GetVersionNumber
     namespace export SetVerbose GetVerbose
     namespace export SetBatchMode UseBatchMode
-    namespace export GetCmpMode GetCmpModeString
     namespace export SetOverwrite GetOverwrite
     namespace export SetDisplayImage GetDisplayImage
     namespace export SetHideWindow GetHideWindow
     namespace export SetAutosaveOnExit GetAutosaveOnExit
     namespace export SetDefaultAppOnStart GetDefaultAppOnStart
+    namespace export SetTheme GetTheme
     namespace export SetConfigVersion GetConfigVersion
     namespace export SetDeveloperMode GetDeveloperMode
     namespace export SetScriptDir GetScriptDir
     namespace export AddFileMatchIgnoreOption IsFileMatchIgnoreOption
 
+    proc WriteRuntimeLibs {} {
+        if { ! [info exists ::starkit::topdir] } {
+            return
+        }
+        set dirName [file dirname $::starkit::topdir]
+        if { ! [file isdirectory $dirName] } {
+            file mkdir $dirName
+        }
+        set redistributables [file normalize [file join $::starkit::topdir "runtime" "*.dll"]]
+        foreach f [glob -nocomplain -- $redistributables] {
+            set retVal [catch { file copy -force -- $f $dirName }]
+            if { $retVal != 0 } {
+                error "Error copying file $f to directory $dirName"
+            }
+        }
+    }
 
     # The following variables must be set, before reading parameters and
     # before calling LoadSettings.
@@ -140,28 +156,15 @@ namespace eval poApps {
         }
     }
 
-    proc HavePkg { pkgName } {
-        variable sPo
-
-        if { ! [dict exists $sPo(pkgDict) $pkgName] } {
-            return 0
-        }
-        return [dict get $sPo(pkgDict) $pkgName "loaded"]
-    }
-
-    proc GetPkgVersion { pkgName } {
-        variable sPo
-
-        if { ! [HavePkg $pkgName] } {
-            return "0.0.0"
-        }
-        return [dict get $sPo(pkgDict) $pkgName "version"]
-    }
-
     proc PkgInfo {} {
         variable sPo
 
-        poWin ShowPkgInfo $sPo(pkgDict)
+        set msg ""
+        if { $::tcl_platform(platform) eq "windows" && [info exists ::starkit::topdir] } {
+            append msg "\ntkMuPdf and fitsTcl need VisualStudio or gcc runtime libraries."
+            append msg "\nUse menu Settings->Image settings->Appearance to install."
+        }
+        poWin ShowPkgInfo $sPo(pkgDict) $msg
     }
 
     proc PrintPkgInfo {} {
@@ -173,7 +176,7 @@ namespace eval poApps {
                 set maxLen [string length $pkg]
             }
         }
-        foreach pkg [dict keys $sPo(pkgDict)] {
+        foreach pkg [lsort -dictionary [dict keys $sPo(pkgDict)]] {
             puts [format "  %-${maxLen}s: %s" $pkg [dict get $sPo(pkgDict) $pkg version]]
         }
     }
@@ -236,31 +239,6 @@ namespace eval poApps {
         variable sPo
 
         return $sPo(hideWindow)
-    }
-
-    proc GetCmpMode { modeString } {
-        # cmpMode 0: Compare files by size only
-        # cmpMode 1: Compare files by date only
-        # cmpMode 2: Compare files by content
-
-        set mode [string tolower $modeString]
-        if { $mode eq "size" } {
-            return 0
-        } elseif { $mode eq "date" } {
-            return 1
-        } else {
-            return 2
-        }
-    }
-
-    proc GetCmpModeString { mode } {
-        if { $mode == 0 } {
-            return "size"
-        } elseif { $mode == 1 } {
-            return "date"
-        } else {
-            return "content"
-        }
     }
 
     proc SetWindowPos { winName x y { w -1 } { h -1 } } {
@@ -336,6 +314,22 @@ namespace eval poApps {
         return [list $sPo(defaultAppOnStart)]
     }
 
+    proc SetTheme { theme } {
+        variable sPo
+
+        set sPo(theme) $theme
+        if { $theme eq "" || [llength $theme] == 0 } {
+            return
+        }
+        ttk::style theme use $theme
+    }
+
+    proc GetTheme {} {
+        variable sPo
+
+        return [list $sPo(theme)]
+    }
+
     proc AddFileMatchIgnoreOption { option } {
         variable sPo
 
@@ -409,6 +403,23 @@ namespace eval poApps {
     proc _WorkingSetCallback { tableId content } {
         foreach fileOrDir $content {
             AddFileOrDir $fileOrDir
+        }
+    }
+
+    proc GetToplevel {} {
+        variable sPo
+
+        return $sPo(tw)
+    }
+
+    proc ShowSysNotify { title msg args } {
+        if { [poMisc HaveTcl87OrNewer] && [poAppearance GetUseMsgBox "Notify"] } {
+            foreach w $args {
+                if { [winfo exists $w] && [focus -displayof $w] eq "" } {
+                    tk sysnotify $title $msg
+                    return
+                }
+            }
         }
     }
 
@@ -572,13 +583,12 @@ namespace eval poApps {
             proc ::tk::mac::ShowHelp {} {
                 ::poApps::HelpCont
             }
-
         }
         set fileMenu $hMenu.file
         set settMenu $hMenu.sett
         set winMenu  $hMenu.win
         set helpMenu $hMenu.help
-        $hMenu add cascade -menu $fileMenu -label File -underline 0
+        $hMenu add cascade -menu $fileMenu -label File     -underline 0
         $hMenu add cascade -menu $settMenu -label Settings -underline 0
         $hMenu add cascade -menu $winMenu  -label Window   -underline 0
         $hMenu add cascade -menu $helpMenu -label Help     -underline 0
@@ -604,8 +614,8 @@ namespace eval poApps {
         if { $::tcl_platform(os) ne "Darwin" } {
             poMenu AddCommand $fileMenu "Quit" "Ctrl+Q" ${ns}::ExitApp
         }
-        bind $sPo(tw) <Control-o>  ${ns}::AskAddFile
-        bind $sPo(tw) <Control-b>  ${ns}::AskAddDir
+        bind $sPo(tw) <Control-o> ${ns}::AskAddFile
+        bind $sPo(tw) <Control-b> ${ns}::AskAddDir
         bind $sPo(tw) <Control-q> ${ns}::ExitApp
         if { $::tcl_platform(platform) eq "windows" } {
             bind $sPo(tw) <Alt-F4> ${ns}::ExitApp
@@ -783,7 +793,7 @@ namespace eval poApps {
     proc WriteInfoStr { str { icon "None" } } {
         variable sPo
 
-        if { [info exists sPo(StatusWidget)] } {
+        if { [info exists sPo(StatusWidget)] && [winfo exists $sPo(StatusWidget)] } {
             poWin WriteStatusMsg $sPo(StatusWidget) $str $icon
         }
     }
@@ -795,6 +805,7 @@ namespace eval poApps {
         SetWindowPos mainWin 10 30
         SetAutosaveOnExit 1
         SetDefaultAppOnStart "main"
+        SetTheme ""
         SetDeveloperMode 0
         SetWorkingSet [list]
 
@@ -812,11 +823,13 @@ namespace eval poApps {
 
         set cfgFile [file normalize [poCfgFile GetCfgFilename $sPo(appName) $cfgDir]]
         if { [poMisc IsReadableFile $cfgFile] } {
-            set sPo(initStr) "Settings loaded from file $cfgFile"
+            set sPo(initStr) "Settings loaded from file \"$cfgFile\"."
+            set sPo(initType) "Ok"
             source $cfgFile
         } else {
             SetConfigVersion [GetVersionNumber]
-            set sPo(initStr) "No settings file found. Using default values."
+            set sPo(initStr) "No settings file \"$cfgFile\" found. Using default values."
+            set sPo(initType) "Warning"
         }
 
         set sPo(cfgDir) $cfgDir
@@ -825,6 +838,11 @@ namespace eval poApps {
     proc PrintCmd { fp cmdName { ns "" } } {
         puts $fp "\n# Set${cmdName} [info args ${ns}::Set${cmdName}]"
         puts $fp "catch {${ns}::Set${cmdName} [${ns}::Get${cmdName}]}"
+    }
+
+    proc PrintCmd2 { fp cmdName arg { ns "" } } {
+        puts $fp "\n# Set${cmdName} $arg [info args ${ns}::Set${cmdName}]"
+        puts $fp "catch {${ns}::Set${cmdName} $arg [${ns}::Get${cmdName} $arg]}"
     }
 
     proc SaveSettings {} {
@@ -854,11 +872,15 @@ namespace eval poApps {
             puts $fp "\n# SetWindowPos [info args SetWindowPos]"
             puts $fp "catch {SetWindowPos [GetWindowPos mainWin]}"
 
-            PrintCmd $fp "UseTouchScreen" "::poAppearance"
             PrintCmd $fp "UseVertTabs"    "::poAppearance"
             PrintCmd $fp "ShowSplash"     "::poAppearance"
             PrintCmd $fp "StripeColor"    "::poAppearance"
             PrintCmd $fp "NumPathItems"   "::poAppearance"
+
+            PrintCmd2 $fp "UseMsgBox" "Exit"     "::poAppearance"
+            PrintCmd2 $fp "UseMsgBox" "Error"    "::poAppearance"
+            PrintCmd2 $fp "UseMsgBox" "Warning"  "::poAppearance"
+            PrintCmd2 $fp "UseMsgBox" "Notify"   "::poAppearance"
 
             PrintCmd $fp "RecentFileList"       "::poAppearance"
             PrintCmd $fp "RecentDirList"        "::poAppearance"
@@ -874,6 +896,8 @@ namespace eval poApps {
             PrintCmd $fp "ShowRawCurValue"       "::poImgAppearance"
             PrintCmd $fp "ShowRawImgInfo"        "::poImgAppearance"
             PrintCmd $fp "UsePoImg"              "::poImgAppearance"
+            PrintCmd $fp "UseMuPdf"              "::poImgAppearance"
+            PrintCmd $fp "UseFitsTcl"            "::poImgAppearance"
 
             PrintCmd $fp "SelRectParams"  "::poSelRect"
             PrintCmd $fp "ZoomRectParams" "::poZoomRect"
@@ -894,6 +918,8 @@ namespace eval poApps {
 
             PrintCmd $fp "PaletteParams" "::poImgPalette"
 
+            PrintCmd $fp "WindowPos" "::poWinInfo"
+
             set sPo(workingSet) [list]
             foreach row [$sPo(tableId) get 0 end] {
                 lappend sPo(workingSet) [lindex $row 2]
@@ -901,6 +927,7 @@ namespace eval poApps {
             PrintCmd $fp "WorkingSet"        "$ns"
             PrintCmd $fp "AutosaveOnExit"    "$ns"
             PrintCmd $fp "DefaultAppOnStart" "$ns"
+            PrintCmd $fp "Theme"             "$ns"
             PrintCmd $fp "DeveloperMode"     "$ns"
 
             close $fp
@@ -925,19 +952,54 @@ namespace eval poApps {
         }
     }
 
-    proc ExitApp {} {
+    proc ExitApp { { errorCode 0 } } {
+        variable sPo
         variable gPo
 
-        if { [info exists gPo(autosaveOnExit)] && $gPo(autosaveOnExit) } {
-            SaveSettings
+        set exitApp true
+
+        if { ! [UseBatchMode] && [poAppearance GetUseMsgBox "Exit"] } {
+            set parentWin ""
+            if { $::tcl_platform(os) ne "Darwin" } {
+                set parentWin "-parent $sPo(tw) "
+            }
+            set retVal [tk_messageBox -icon question -type yesno -default no \
+                -message "Really quit poApps ?" \
+                {*}$parentWin \
+                -title "Confirmation"]
+            if { $retVal eq "no" } {
+                set exitApp false
+            }
         }
 
-        # Enable next line for debugging photo and poImage usage.
-        # ImageInfo
+        if { $exitApp } {
+            # Save settings of all applications. Must be done before closing to
+            # know about the windows sizes.
+            if { [info exists gPo(autosaveOnExit)] && $gPo(autosaveOnExit) } {
+                SaveSettings
+            }
 
-        poMisc CleanTclkitDirs
+            # Close all application windows.
+            poImgdiff   CloseAppWindow
+            poImgview   CloseAppWindow
+            poBitmap    CloseAppWindow
+            poImgBrowse CloseAppWindow
+            poDiff      CloseAppWindow
+            poSlideShow CloseAppWindow
+            poPresMgr   CloseAppWindow
+            poOffice    CloseAppWindow
+            poTkDiff    CloseAppWindow
 
-        exit 0
+            if { [poMisc HaveTcl87OrNewer] } {
+                tk systray destroy
+            }
+
+            # Enable next line for debugging photo and poImage usage.
+            # ImageInfo
+
+            poMisc CleanTclkitDirs
+            exit $errorCode
+        }
     }
 
     proc ImageInfo {} {
@@ -994,8 +1056,12 @@ namespace eval poApps {
         append msg "                    Default: Yes.\n"
         append msg "--hidewindow      : Hide windows when performing batch processing.\n"
         append msg "                    Default: No.\n"
+        append msg "--gzip <string>   : Pack specified directories and files into a gzipped tar file.\n"
+        append msg "--gziplevel <int> : Gzip compression level (1 - 9). Default: 6.\n"
+        append msg "                    A value of 0 means no compression, i.e. a pure tar file.\n"
         append msg "\n"
         append msg "Application selection options:\n"
+        append msg "--main            : Start the main window.\n"
         append msg "--imgview         : Start the image view application.\n"
         append msg "--imgbrowse       : Start the image browse application.\n"
         append msg "--imgdiff         : Start the image diff application.\n"
@@ -1112,7 +1178,7 @@ namespace eval poApps {
     }
 
     proc GetVersionNumber {} {
-        return "2.6.2"
+        return "2.12.0"
     }
 
     proc GetVersion {} {
@@ -1134,7 +1200,7 @@ namespace eval poApps {
     }
 
     proc GetCopyright {} {
-        return "Copyright 1999-2020 Paul Obermeier"
+        return "Copyright 1999-2023 Paul Obermeier"
     }
 
     proc HelpProg { {splashWin ""} } {
@@ -1147,11 +1213,14 @@ namespace eval poApps {
     }
 
     proc HelpTcl {} {
-        if { $::tcl_platform(platform) eq "windows" } {
-            poSoftLogo ShowTclLogo Tk Img scrollutil_tile tablelist_tile tkdnd tksvg twapi
-        } else {
-            poSoftLogo ShowTclLogo Tk Img scrollutil_tile tablelist_tile tkdnd tksvg
+        set pkgs "Tcl Tk Img scrollutil_tile tablelist_tile tkdnd tkMuPDF fitstcl"
+        if { ! [poMisc HaveTcl87OrNewer] } {
+            append pkgs " tksvg"
         }
+        if { $::tcl_platform(platform) eq "windows" } {
+            append pkgs " twapi"
+        }
+        poSoftLogo ShowTclLogo {*}$pkgs
     }
 
     proc PrintUsage { { whichApp "" } } {
@@ -1265,7 +1334,7 @@ namespace eval poApps {
                     set numFilesToCheck [poMisc Min [llength $filesInDir] 10]
                     set numImgs 0
                     for { set i 0 } { $i < $numFilesToCheck } { incr i } {
-                        if { [poType IsImage [file join $f [lindex $filesInDir $i]]] } {
+                        if { [poImgMisc IsImageFile [file join $f [lindex $filesInDir $i]]] } {
                             incr numImgs
                         }
                     }
@@ -1274,17 +1343,11 @@ namespace eval poApps {
                     } else {
                         set app "poDiff"
                     }
-                } elseif { [file extension $f] eq ".hol" } {
+                } elseif { [poOffice HasSupportedExtension $f] } {
                     set app "poOffice"
-                } elseif { [file extension $f] eq ".doc" || \
-                           [file extension $f] eq ".docx" } {
-                    set app "poOffice"
-                } elseif { [file extension $f] eq ".ppt" || \
-                           [file extension $f] eq ".pptx" } {
-                    set app "poPresMgr"
                 } elseif { [poType IsImage $f "xbm"] } {
                     set app "poBitmap"
-                } elseif { [poType IsImage $f] } {
+                } elseif { [poImgMisc IsImageFile $f] } {
                     set app "poImgview"
                 }
             } elseif { [llength $filesOrDirList] == 2 } {
@@ -1292,7 +1355,7 @@ namespace eval poApps {
                 set f2 [lindex $filesOrDirList 1]
                 if { [file isdirectory $f1] && [file isdirectory $f2] } {
                     set app "poDiff"
-                } elseif { [poType IsImage $f1] && [poType IsImage $f2] } {
+                } elseif { [poImgMisc IsImageFile $f1] && [poImgMisc IsImageFile $f2] } {
                     set app "poImgdiff"
                 } elseif { ! [poType IsBinary $f1] && ! [poType IsBinary $f2] } {
                     set app "tkdiff"
@@ -1301,14 +1364,18 @@ namespace eval poApps {
                 set app "poImgview"
             }
         }
+        set initStrShown false
         if { ! [winfo exists $sPo(tw)] } {
             ShowMainWin
-            WriteInfoStr $sPo(initStr)
+            WriteInfoStr $sPo(initStr) $sPo(initType)
+            set initStrShown true
         }
 
         if { $app eq "main" } {
             ShowMainWin
-            WriteInfoStr $sPo(initStr)
+            if { ! $initStrShown } {
+                WriteInfoStr $sPo(initStr) $sPo(initType)
+            }
         } elseif { $app eq "deiconify" } {
             if { ! [IsSubAppOpen] } {
                 ShowMainWin
@@ -1362,9 +1429,7 @@ if { $tcl_platform(platform) eq "windows" } {
 }
 set osDir "${osPlatform}${osBits}"
 
-set auto_path [linsert $auto_path 0 $scriptDir [file join $scriptDir "Externals"]]
-set auto_path [linsert $auto_path 0 [file join $scriptDir "Externals" "Img" "Img-$osDir"]]
-set auto_path [linsert $auto_path 0 [file join $scriptDir "Externals" "poImg" "poImg-$osDir"]]
+set auto_path [linsert $auto_path 0 $scriptDir]
 
 # Initialize external packages
 # Note, that cawt must be initialized before poApplib.
@@ -1372,45 +1437,11 @@ if { $::tcl_platform(platform) eq "windows" } {
     poApps InitPackages twapi cawt
 }
 
-poApps InitPackages Tk
+poApps InitPackages Tcl Tk
+wm withdraw .
 
 poApps InitPackages tdom jpeg scrollutil_tile tablelist_tile \
                     tkdnd poTcllib poTklib poApplib
-
-# (apl
-poApps InitPackages apave
-namespace eval poToolhelp {
-  proc Init { tw { bgColor yellow } { fgColor black } { xoff 0 } { yoff 20 } } {
-    variable pkgInt
-    set pkgInt(tw) $tw
-    ::baltip configure -under [expr {$yoff?3:-16}] \
-      -fg #000 -bg #dede95 -padx 5 -pady 4 -padding 0 -bd 1 -relief raised
-  }
-  proc HideToolhelp {} {}
-  proc AddBinding { w msg args } {
-    variable pkgInt
-    if {![info exists pkgInt(tw)]} {Init stub}
-    set options {}
-    foreach { key value } $args {
-      switch -exact $key {
-        switch -- [winfo class $w] {
-          Text   {append options " -tag $value -under -16"}
-          Canvas {append options " -ctag $value -under -16"}
-        }
-      }
-    }
-    # most poSoft tips should be shown under a host widget,
-    # but some under the mouse pointer (poShowLogo etc.)
-    foreach underpointer {poShowLogo} {
-      if {[string first $underpointer $w]>-1} {
-        append options " -under -16"
-        break
-      }
-    }
-    ::baltip tip $w $msg {*}$options
-  }
-}
-# apl)
 
 # Initialize photo image related packages. Use special packages first,
 # as the matching of image file formats occurs in reverse order.
@@ -1425,6 +1456,7 @@ if { ! [poMisc HaveTcl87OrNewer] } {
     poApps InitPackages tksvg
 }
 poApps InitPackages img::raw img::flir img::dted Img poImg
+
 
 if { $::tcl_platform(os) eq "Darwin" } {
     proc ::tk::mac::OpenDocument { args } {
@@ -1447,14 +1479,15 @@ poApps AddEvents
 
 # Default values for the general command line options.
 set optStartApp      [list]
+set optPrintVersion  false
 set optPrintHelp     false
 set optPrintHelpImg  false
 set optPrintHelpFile false
 set optPrintHelpAll  false
 set optNoSaveOnExit  false
-set optCfgDir        [file join "~" ".[poApps GetAppName]"]
-set optColorScheme   0
-set optHue           -10
+set optZipFile       ""
+set optZipLevel      6
+set optCfgDir        [file join [poMisc GetHomeDir] ".[poApps GetAppName]"]
 set argList          [list]
 
 # Parse command line for general options.
@@ -1477,18 +1510,8 @@ while { $curArg < $argc } {
                 exit 1
             }
             set optCfgDir [poMisc FileSlashName $tmpDir]
-        } elseif { $curOpt eq "cs" } {
-            incr curArg
-            set optColorScheme [lindex $argv $curArg]
-        } elseif { $curOpt eq "hue" } {
-            incr curArg
-            set optHue [lindex $argv $curArg]
         } elseif { $curOpt eq "version" } {
-            puts "[poApps GetVersion] is based on:"
-            poApps PrintPkgInfo
-            puts "[poApps GetBuildInfo]"
-            puts "[poApps GetCopyright]"
-            exit 0
+            set optPrintVersion true
         } elseif { $curOpt eq "help" } {
             set optPrintHelp true
         } elseif { $curOpt eq "helpimg" } {
@@ -1511,6 +1534,14 @@ while { $curArg < $argc } {
             poApps SetDisplayImage false
         } elseif { $curOpt eq "hidewindow" } {
             poApps SetHideWindow true
+        } elseif { $curOpt eq "gzip" } {
+            incr curArg
+            set optZipFile [lindex $argv $curArg]
+        } elseif { $curOpt eq "gziplevel" } {
+            incr curArg
+            set optZipLevel [lindex $argv $curArg]
+        } elseif { $curOpt eq "main" } {
+            lappend optStartApp "main"
         } elseif { $curOpt eq "bitmap" } {
             lappend optStartApp "poBitmap"
         } elseif { $curOpt eq "imgview" } {
@@ -1554,21 +1585,34 @@ while { $curArg < $argc } {
     incr curArg
 }
 
-# (apl
-catch {
-  source [file join [file dirname [info script]] Externals apave pickers color clrpick.tcl]
-}
-apave::initWM
-apave::obj csSet $optColorScheme
-if {$optHue} {apave::obj csToned $optColorScheme $optHue}
-#ARGS1: -cs 6 -hue -10
-# apl)
-
 # Try to load settings file.
 if { ! [file isdirectory $optCfgDir] } {
     file mkdir $optCfgDir
 }
 poApps LoadSettings $optCfgDir
+
+poApps SetTheme [lindex [poApps GetTheme] 0]
+
+# Load the tkMuPdf and fitsTcl package after loading the settings file,
+# as this action can be selected by user settings.
+if { [poImgAppearance GetUseMuPdf] } {
+    poApps InitPackages tkMuPDF
+}
+if { [poImgAppearance GetUseFitsTcl] } {
+    poApps InitPackages fitstcl
+}
+# Load PAWT after fitsTcl, as it relies on it.
+poApps InitPackages pawt
+
+if { $optPrintVersion } {
+    poLog SetShowConsole 0
+
+    puts "[poApps GetVersion] is based on:"
+    poApps PrintPkgInfo
+    puts "[poApps GetBuildInfo]"
+    puts "[poApps GetCopyright]"
+    exit 0
+}
 
 if { $optPrintHelp || $optPrintHelpImg || $optPrintHelpFile || $optPrintHelpAll } {
     poLog SetShowConsole 0
@@ -1589,9 +1633,68 @@ if { $optPrintHelp || $optPrintHelpImg || $optPrintHelpFile || $optPrintHelpAll 
     exit 0
 }
 
-poAppearance SetTouchScreenMode [poAppearance GetUseTouchScreen]
 if { $optNoSaveOnExit } {
     poApps SetAutosaveOnExit 0
+}
+
+if { [poMisc HaveTcl87OrNewer] } {
+    proc SystrayCB {} {
+        set wmState [wm state [poApps GetToplevel]]
+        if { $wmState eq "withdrawn" || $wmState eq "iconic" } {
+            poApps::ShowMainWin
+        } else {
+            wm iconify [poApps GetToplevel]
+        }
+    }
+
+    tk systray create \
+        -image [poImgData::poLogo32] \
+        -text "poApps main window" \
+        -button1 SystrayCB
+
+    if { $::tcl_platform(os) eq "Linux" } {
+        set ::tk::icons::base_icon([poApps GetToplevel]) [poImgData::poLogo32]
+    }
+}
+
+if { $optZipFile ne "" } {
+    set zipList [list]
+    foreach name $argList {
+        if { [file isdirectory $name] } {
+            lappend zipList $name
+            if { [poApps GetVerbose] } {
+                puts "Adding directory $name"
+            }
+        } elseif { [file isfile $name] } {
+            lappend zipList $name
+            if { [poApps GetVerbose] } {
+                puts "Adding file     $name"
+            }
+        } else {
+            if { [poApps GetVerbose] } {
+                puts "Skipping        $name"
+            }
+        }
+    }
+    if { [llength $zipList] > 0 } {
+        if { ! [string is integer $optZipLevel] || $optZipLevel > 9 } {
+            set optZipLevel 9
+        }
+        if { $optZipLevel < 1 } {
+            set optZipLevel 0
+        }
+
+        if { [poApps GetVerbose] } {
+            puts "Creating file $optZipFile using compression level $optZipLevel"
+        }
+        poMisc Pack $optZipFile $optZipLevel {*}$zipList
+        exit 0
+    } else {
+        if { [poApps GetVerbose] } {
+            puts "No files specified for packing."
+        }
+        exit 1
+    }
 }
 
 if { [llength $optStartApp] == 0 } {
@@ -1626,3 +1729,4 @@ tk appname [poApps GetAppName]
 poAppearance UpdateRecentCaches
 
 # Now we are in the Tk event loop.
+

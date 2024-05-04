@@ -1,5 +1,5 @@
 # Module:         poColorCount
-# Copyright:      Paul Obermeier 2014-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2014-2023 / paul@poSoft.de
 # First Version:  2014 / 11 / 30
 #
 # Distributed under BSD license.
@@ -14,7 +14,6 @@ namespace eval poColorCount {
     namespace export Init
     namespace export GetMarkColor SetMarkColor
     namespace export ShowWin CloseWin CloseAllWin
-    namespace export SaveValues
 
     proc Init {} {
         variable ns
@@ -48,6 +47,10 @@ namespace eval poColorCount {
 
     proc ShowMarkColor { winNum tableId phImg } {
         variable sPo
+
+        if { ! [namespace exists ::poImgview] } {
+            return
+        }
 
         if { ! [poImgMisc IsPhoto $phImg] } {
             tk_messageBox -title "Error" -icon error \
@@ -144,7 +147,7 @@ namespace eval poColorCount {
 
         poToolbar AddButton $toolfr [::poBmpData::save] \
                   "${ns}::AskSaveColorCountValues $winNum" "Save color count table to CSV file"
-        if { [poApps HavePkg "cawt"] } {
+        if { [poMisc HavePkg "cawt"] } {
             poToolbar AddButton $toolfr [::poBmpData::sheetIn] \
                       "${ns}::ColorCountValuesToExcel $winNum" "Load color count table to Excel"
         }
@@ -198,7 +201,7 @@ namespace eval poColorCount {
                     $tableId cellconfigure "end,5" -background [format "#%02X%02X%02X" $r $g $b]
                 }
             }
-            $tw configure -cursor top_left_arrow
+            $tw configure -cursor arrow
             update
         }
 

@@ -1,5 +1,5 @@
 # Module:         poSoftLogo
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 02 / 20
 #
 # Distributed under BSD license.
@@ -233,39 +233,51 @@ namespace eval poSoftLogo {
                 set versionStr "(not loaded)"
             }
             switch -exact -- $extension {
-                Tk             {  set progName "Tcl/Tk [info patchlevel]"
+                Tcl            {  set progName "Tcl [info patchlevel]"
                                   set url      "http://www.tcl-lang.org/"
-                                  set author   "All Tcl/Tk core developers"
+                                  set author   "All Tcl developers"
+                               }
+                Tk             {  set progName "Tk $versionStr"
+                                  set url      "http://www.tcl-lang.org/"
+                                  set author   "All Tk developers"
                                 }
                 Img             { set progName "Img $versionStr"
-                                  set url      "http://sourceforge.net/projects/tkImg/"
+                                  set url      "https://sourceforge.net/projects/tkimg/"
                                   set author   "Jan Nijtmans, Andreas Kupries"
                                 }
                 scrollutil -
                 scrollutil_tile { set progName "scrollutil $versionStr"
-                                  set url      "http://www.nemethi.de/scrollutil/"
+                                  set url      "https://www.nemethi.de/scrollutil/"
+                                  set author   "Csaba Nemethi"
+                                }
+                tablelist -
+                tablelist_tile  { set progName "tablelist $versionStr"
+                                  set url      "https://www.nemethi.de/tablelist/"
                                   set author   "Csaba Nemethi"
                                 }
                 Tktable         { set progName "Tktable $versionStr"
-                                  set url      "http://sourceforge.net/projects/tktable/"
+                                  set url      "https://sourceforge.net/projects/tktable/"
                                   set author   "Jeffrey Hobbs"
                                 }
                 tkdnd           { set progName "tkdnd $versionStr"
                                   set url      "https://github.com/petasis/tkdnd/"
                                   set author   "Georgios Petasis"
                                 }
+                fitstcl         { set progName "fitstcl $versionStr"
+                                  set url      "https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/fitsTcl_home.html"
+                                  set author   "HEASARC@NASA"
+                                }
+                tkMuPDF         { set progName "tkMuPDF $versionStr"
+                                  set url      "https://sourceforge.net/projects/irrational-numbers/"
+                                  set author   "Aldo Buratti"
+                                }
                 tksvg           { set progName "tksvg $versionStr"
                                   set url      "https://github.com/auriocus/tksvg/"
                                   set author   "Christian Gollwitzer"
                                 }
                 twapi           { set progName "twapi $versionStr"
-                                  set url      "http://twapi.magicsplat.com/"
+                                  set url      "https://twapi.magicsplat.com/"
                                   set author   "Ashok P. Nadkarni"
-                                }
-                tablelist -
-                tablelist_tile  { set progName "tablelist $versionStr"
-                                  set url      "http://www.nemethi.de/tablelist/"
-                                  set author   "Csaba Nemethi"
                                 }
             }
             ttk::button $t.f.lext$row -text $progName -command [list poExtProg::OpenUrl $url]

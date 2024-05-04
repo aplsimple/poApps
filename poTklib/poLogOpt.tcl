@@ -1,5 +1,5 @@
 # Module:         poLogOpt
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 12 / 02
 #
 # Distributed under BSD license.
@@ -57,7 +57,7 @@ namespace eval poLogOpt {
         catch { destroy $w }
     }
 
-    proc SetOpt { } {
+    proc SetOpt {} {
         variable consEnable
         variable consOldMode
         variable logOptions
@@ -124,28 +124,36 @@ namespace eval poLogOpt {
 
         set varList {}
         ttk::frame $tw.fr
-        pack $tw.fr -side top -fill x -expand 1
-        ttk::checkbutton $tw.fr.cb1 -text [Str ConsEnable] \
+        pack $tw.fr -side top -fill both -expand 1
+
+        set onoffFr  $tw.fr.onoffFr
+        set optionFr $tw.fr.optionFr
+        ttk::frame $onoffFr
+        ttk::frame $optionFr
+        grid $onoffFr  -row 0 -column 0 -sticky news
+        grid $optionFr -row 1 -column 0 -sticky news
+
+        ttk::checkbutton $onoffFr.cb -text [Str ConsEnable] \
                     -variable ${ns}::consEnable \
                     -onvalue 1 -offvalue 0
-        ttk::checkbutton $tw.fr.cb2 -text [Str LogInfo] \
+        pack $onoffFr.cb -side top -anchor w -pady 4
+
+        ttk::checkbutton $optionFr.cb1 -text [Str LogInfo] \
                     -variable ${ns}::logOptions([poLog LevelInfo]) \
                     -onvalue [poLog LevelInfo] -offvalue [poLog LevelOff]
-        ttk::checkbutton $tw.fr.cb3 -text [Str LogWarn] \
+        ttk::checkbutton $optionFr.cb2 -text [Str LogWarn] \
                     -variable ${ns}::logOptions([poLog LevelWarning]) \
                     -onvalue [poLog LevelWarning] -offvalue [poLog LevelOff]
-        ttk::checkbutton $tw.fr.cb4 -text [Str LogError] \
+        ttk::checkbutton $optionFr.cb3 -text [Str LogError] \
                     -variable ${ns}::logOptions([poLog LevelError]) \
                     -onvalue [poLog LevelError] -offvalue [poLog LevelOff]
-        ttk::checkbutton $tw.fr.cb5 -text [Str LogDebug] \
+        ttk::checkbutton $optionFr.cb4 -text [Str LogDebug] \
                     -variable ${ns}::logOptions([poLog LevelDebug]) \
                     -onvalue [poLog LevelDebug] -offvalue [poLog LevelOff]
-        ttk::checkbutton $tw.fr.cb6 -text [Str LogCall] \
+        ttk::checkbutton $optionFr.cb5 -text [Str LogCall] \
                     -variable ${ns}::logOptions([poLog LevelCallstack]) \
                     -onvalue [poLog LevelCallstack] -offvalue [poLog LevelOff]
-        pack $tw.fr.cb1 -side top -anchor w -pady 4
-        pack $tw.fr.cb2 $tw.fr.cb3 $tw.fr.cb4 $tw.fr.cb5 $tw.fr.cb6 \
-             -side top -anchor w
+        pack {*}[winfo children $optionFr] -side top -anchor w
 
         set tmpList [list [list consEnable] [list $consEnable]]
         lappend varList $tmpList

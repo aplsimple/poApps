@@ -1,5 +1,5 @@
 # Module:         poSettings
-# Copyright:      Paul Obermeier 2013-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2013-2023 / paul@poSoft.de
 # First Version:  2013 / 04 /12
 #
 # Distributed under BSD license.
@@ -18,11 +18,12 @@ namespace eval poAppearance {
     namespace export Init OpenWin OkWin CancelWin
     namespace export CutFilePath
     namespace export GetUseVertTabs      SetUseVertTabs GetTabStyle
-    namespace export GetUseTouchScreen   SetUseTouchScreen SetTouchScreenMode
     namespace export GetShowSplash       SetShowSplash
+    namespace export GetUseMsgBox        SetUseMsgBox
     namespace export GetStripeColor      SetStripeColor
     namespace export GetNumPathItems     SetNumPathItems
     namespace export GetRecentFileList   GetRecentDirList
+    namespace export GetRecentFiles      GetRecentDirs
     namespace export AddToRecentFileList AddToRecentDirList
     namespace export EditRecentList
     namespace export ClearRecentCaches   UpdateRecentCaches
@@ -36,20 +37,15 @@ namespace eval poAppearance {
         SetShowSplash     1
         SetStripeColor    "#F0F0F0"
         SetNumPathItems   1
-        SetUseTouchScreen 0
-        if { [poMisc IsAndroid] } {
-            SetUseTouchScreen 1
-        }
+        SetUseMsgBox "Exit"    1
+        SetUseMsgBox "Error"   1
+        SetUseMsgBox "Warning" 1
+        SetUseMsgBox "Notify"  1
 
         ClearRecentList recentFileList
         ClearRecentList recentDirList
 
         ttk::style configure Vert.TNotebook -tabposition wn -tabplacement nwe
-        # TODO TouchScreen
-        #ttk::style configure Sash -sashthickness 30
-        #ttk::style configure TPanedwindow -background red
-        #ttk::style configure TEntry.field -font Courier
-        #ttk::style configure TLabel -font Courier
     }
 
     proc SetUseVertTabs { useVertTabs } {
@@ -74,32 +70,6 @@ namespace eval poAppearance {
         }
     }
 
-    proc SetUseTouchScreen { useTouchScreen } {
-        variable sett
-
-        set sett(useTouchScreen) $useTouchScreen
-    }
-
-    proc GetUseTouchScreen {} {
-        variable sett
-
-        return [list $sett(useTouchScreen)]
-    }
-
-    proc SetTouchScreenMode { onOff } {
-        if { $onOff } {
-            poBmpData SetBmpType bitmaps32
-        } else {
-            poBmpData SetBmpType bitmaps
-        }
-    }
-
-    proc ToggleTouchScreenMode {} {
-        variable sett
-
-        SetTouchScreenMode $sett(useTouchScreen)
-    }
-
     proc SetShowSplash { showSplash } {
         variable sett
 
@@ -110,6 +80,22 @@ namespace eval poAppearance {
         variable sett
 
         return [list $sett(showSplash)]
+    }
+
+    proc SetUseMsgBox { level onOff } {
+        variable sett
+
+        set sett(UseMsgBox,$level) $onOff
+    }
+
+    proc GetUseMsgBox { level } {
+        variable sett
+
+        if { [info exists sett(UseMsgBox,$level)] } {
+            return $sett(UseMsgBox,$level)
+        } else {
+            return false
+        }
     }
 
     proc SetStripeColor { stripeColor } {
@@ -153,6 +139,12 @@ namespace eval poAppearance {
         set sett(recentFileList) $fileList
     }
 
+    proc GetRecentFileList { args } {
+        variable sett
+
+        return [list $sett(recentFileList)]
+    }
+
     proc IsFile { fileName } {
         variable sFileCache
 
@@ -162,25 +154,55 @@ namespace eval poAppearance {
         return $sFileCache($fileName)
     }
 
-    proc GetRecentFileList { { checkExistence false } } {
+    proc GetRecentFiles { args } {
         variable sett
 
-        if { $checkExistence } {
-            set existList [list]
-            foreach f $sett(recentFileList) {
-                lappend existList $f
-                lappend existList [IsFile $f]
+        set checkExistence false
+        set extensionList  [list]
+        foreach { key value } $args {
+            switch -exact -nocase -- $key {
+                "-check"      { set checkExistence $value }
+                "-extensions" { set extensionList  $value }
+                default       { error "GetRecentFileList: Unknown key \"$key\" specified" }
             }
-            return $existList
-        } else {
-            return [list $sett(recentFileList)]
         }
+
+        set existList [list]
+        foreach f $sett(recentFileList) {
+            set fileExt [file extension $f]
+            if { [llength $extensionList] == 0 } {
+                set found true
+            } else {
+                set found false
+                foreach ext $extensionList {
+                    if { $ext eq $fileExt } {
+                        set found true
+                        break
+                    }
+                }
+            }
+            if { $found } {
+                lappend existList $f
+                if { $checkExistence } {
+                    lappend existList [IsFile $f]
+                } else {
+                    lappend existList -1
+                }
+            }
+        }
+        return $existList
     }
 
     proc SetRecentDirList { dirList } {
         variable sett
 
         set sett(recentDirList) $dirList
+    }
+
+    proc GetRecentDirList {} {
+        variable sett
+
+        return [list $sett(recentDirList)]
     }
 
     proc IsDirectory { dirName } {
@@ -192,7 +214,7 @@ namespace eval poAppearance {
         return $sDirCache($dirName)
     }
 
-    proc GetRecentDirList { { checkExistence false } } {
+    proc GetRecentDirs { { checkExistence false } } {
         variable sett
 
         if { $checkExistence } {
@@ -410,9 +432,14 @@ namespace eval poAppearance {
         $cb current $showInd
     }
 
-    proc ComboAppOneDirCB { cb } {
+    proc ComboAppOnStartCB { cb } {
         set appDescription [$cb get]
         poApps SetDefaultAppOnStart [poApps GetAppName $appDescription]
+    }
+
+    proc ComboThemesCB { cb } {
+        set theme [$cb get]
+        poApps SetTheme $theme
     }
 
     proc OpenWin { fr } {
@@ -424,11 +451,13 @@ namespace eval poAppearance {
         # Generate left column with text labels.
         set row 0
         foreach labelStr { "Modes:" \
+                           "Messages:" \
                            "Recent files:" \
                            "Recent directories:" \
                            "Recent entries cache:" \
                            "Table stripe color:" \
                            "Number of path items:" \
+                           "Theme:" \
                            "Default app on startup:" } {
             ttk::label $tw.l$row -text $labelStr
             grid $tw.l$row -row $row -column 0 -sticky new
@@ -444,20 +473,39 @@ namespace eval poAppearance {
         ttk::frame $tw.fr$row
         grid $tw.fr$row -row $row -column 1 -sticky new
 
-        if { [poApps GetDeveloperMode] } {
-            ttk::checkbutton $tw.fr$row.cb1 -text "Use touch screen" \
-                                            -variable ${ns}::sett(useTouchScreen) \
-                                            -command ${ns}::ToggleTouchScreenMode
-        }
-        ttk::checkbutton $tw.fr$row.cb2 -text "Use vertical tabs" \
+        ttk::checkbutton $tw.fr$row.cb1 -text "Use vertical tabs" \
                                         -variable ${ns}::sett(useVertTabs)
-        ttk::checkbutton $tw.fr$row.cb3 -text "Show splash screen" \
+        ttk::checkbutton $tw.fr$row.cb2 -text "Show splash screen" \
                                         -variable ${ns}::sett(showSplash)
         pack {*}[winfo children $tw.fr$row] -side top -anchor w -pady 2
 
         set tmpList [list [list sett(useVertTabs)] [list $sett(useVertTabs)]]
         lappend varList $tmpList
         set tmpList [list [list sett(showSplash)] [list $sett(showSplash)]]
+        lappend varList $tmpList
+
+        # Messages
+        incr row
+        ttk::frame $tw.fr$row
+        grid $tw.fr$row -row $row -column 1 -sticky new
+
+        ttk::checkbutton $tw.fr$row.cb1 -text "Use exit message box" \
+                                        -variable ${ns}::sett(UseMsgBox,Exit)
+        ttk::checkbutton $tw.fr$row.cb2 -text "Use error message box" \
+                                        -variable ${ns}::sett(UseMsgBox,Error)
+        ttk::checkbutton $tw.fr$row.cb3 -text "Use warning message box" \
+                                        -variable ${ns}::sett(UseMsgBox,Warning)
+        ttk::checkbutton $tw.fr$row.cb4 -text "Use system notifications" \
+                                        -variable ${ns}::sett(UseMsgBox,Notify)
+        pack {*}[winfo children $tw.fr$row] -side top -anchor w -pady 2
+
+        set tmpList [list [list sett(UseMsgBox,Exit)] [list $sett(UseMsgBox,Exit)]]
+        lappend varList $tmpList
+        set tmpList [list [list sett(UseMsgBox,Error)] [list $sett(UseMsgBox,Error)]]
+        lappend varList $tmpList
+        set tmpList [list [list sett(UseMsgBox,Warning)] [list $sett(UseMsgBox,Warning)]]
+        lappend varList $tmpList
+        set tmpList [list [list sett(UseMsgBox,Notify)] [list $sett(UseMsgBox,Notify)]]
         lappend varList $tmpList
 
         # Recent file list.
@@ -516,6 +564,23 @@ namespace eval poAppearance {
         set tmpList [list [list sett(numPathItems)] [list $sett(numPathItems)]]
         lappend varList $tmpList
 
+        # List of available themes.
+        incr row
+        ttk::frame $tw.fr$row
+        grid $tw.fr$row -row $row -column 1 -sticky new
+
+        set comboThemes $tw.fr$row.comboThemes
+        ttk::combobox $comboThemes -state readonly
+
+        set curTheme [ttk::style theme use]
+        set themeList [lsort -dictionary [ttk::style theme names]]
+        set ind [poMisc Max 0 [lsearch $themeList $curTheme]]
+
+        UpdateCombo $comboThemes $themeList $ind
+        $comboThemes current $ind
+        bind $comboThemes <<ComboboxSelected>> "${ns}::ComboThemesCB $comboThemes"
+        pack $comboThemes -side left -pady 2 -padx 5
+
         # Default application on startup without command line parameters.
         incr row
         ttk::frame $tw.fr$row
@@ -530,7 +595,7 @@ namespace eval poAppearance {
 
         UpdateCombo $comboAppOnStart $appsList $ind
         $comboAppOnStart current $ind
-        bind $comboAppOnStart <<ComboboxSelected>> "${ns}::ComboAppOneDirCB $comboAppOnStart"
+        bind $comboAppOnStart <<ComboboxSelected>> "${ns}::ComboAppOnStartCB $comboAppOnStart"
         pack $comboAppOnStart -side left -pady 2 -padx 5
 
         return $varList
@@ -545,7 +610,8 @@ namespace eval poImgAppearance {
     namespace ensemble create
 
     namespace export Init OpenWin OkWin CancelWin
-    namespace export StoreLastImgFmtUsed UsePoImg
+    namespace export StoreLastImgFmtUsed 
+    namespace export UsePoImg UseMuPdf UseFitsTcl
     namespace export GetRowOrderCountBitmap ToggleRowOrderCount
 
     namespace export GetShowColorInHex        SetShowColorInHex
@@ -560,6 +626,8 @@ namespace eval poImgAppearance {
     namespace export GetShowRawCurValue       SetShowRawCurValue
     namespace export GetShowRawImgInfo        SetShowRawImgInfo
     namespace export GetUsePoImg              SetUsePoImg
+    namespace export GetUseMuPdf              SetUseMuPdf
+    namespace export GetUseFitsTcl            SetUseFitsTcl
 
     proc Init {} {
         variable ns
@@ -582,6 +650,13 @@ namespace eval poImgAppearance {
         set sett(raw,lastImgInfo) 1
 
         SetUsePoImg 1
+        if { $::tcl_platform(platform) eq "windows" && [info exists ::starkit::topdir] } {
+            SetUseMuPdf   0
+            SetUseFitsTcl 0
+        } else {
+            SetUseMuPdf   1
+            SetUseFitsTcl 1
+        }
     }
 
     proc SetShowColorInHex { showColorInHex } {
@@ -749,7 +824,39 @@ namespace eval poImgAppearance {
     }
 
     proc UsePoImg {} {
-        return [expr {[poApps HavePkg "poImg"] && [GetUsePoImg]}]
+        return [expr {[poMisc HavePkg "poImg"] && [GetUsePoImg]}]
+    }
+
+    proc SetUseMuPdf { useMuPdf } {
+        variable sett
+
+        set sett(useMuPdf) $useMuPdf
+    }
+
+    proc GetUseMuPdf {} {
+        variable sett
+
+        return $sett(useMuPdf)
+    }
+
+    proc UseMuPdf {} {
+        return [expr {[poMisc HavePkg "tkMuPDF"] && [GetUseMuPdf]}]
+    }
+
+    proc SetUseFitsTcl { useFitsTcl } {
+        variable sett
+
+        set sett(useFitsTcl) $useFitsTcl
+    }
+
+    proc GetUseFitsTcl {} {
+        variable sett
+
+        return $sett(useFitsTcl)
+    }
+
+    proc UseFitsTcl {} {
+        return [expr {[poMisc HavePkg "fitstcl"] && [GetUseFitsTcl]}]
     }
 
     proc StoreLastImgFmtUsed { imgName } {
@@ -814,7 +921,7 @@ namespace eval poImgAppearance {
                            "Histogram height (Pixel):" \
                            "Canvas background color:" \
                            "RAW images:" \
-                           "Debug:" } {
+                           "Image libraries:" } {
             ttk::label $tw.l$row -text $labelStr
             grid $tw.l$row -row $row -column 0 -sticky new
             incr row
@@ -891,16 +998,34 @@ namespace eval poImgAppearance {
         set tmpList [list [list sett(raw,showImgInfo)] [list $sett(raw,showImgInfo)]]
         lappend varList $tmpList
 
-        # Debug switches
+        # tkMuPdf and fitsTcl switches
         incr row
         ttk::frame $tw.fr$row
         grid $tw.fr$row -row $row -column 1 -sticky new
 
-        ttk::checkbutton $tw.fr$row.cb1 -text "Use fast image procs (poImg)" \
-                                        -variable ${ns}::sett(usePoImg)
+        ttk::checkbutton $tw.fr$row.cb1 -text "Load tkMuPDF package on startup" \
+                                        -variable ${ns}::sett(useMuPdf)
+        if { $::tcl_platform(platform) eq "windows" } {
+            poToolhelp AddBinding $tw.fr$row.cb1 \
+                       "The tkMuPDF package needs VisualStudio or gcc runtime libraries"
+        }
+
+        ttk::checkbutton $tw.fr$row.cb2 -text "Load fitsTcl package on startup" \
+                                        -variable ${ns}::sett(useFitsTcl)
+        if { $::tcl_platform(platform) eq "windows" } {
+            poToolhelp AddBinding $tw.fr$row.cb2 \
+                       "The fitsTcl package needs VisualStudio or gcc runtime libraries"
+        }
+
+        if { $::tcl_platform(platform) eq "windows" && [info exists ::starkit::topdir] } {
+            ttk::button $tw.fr$row.b -text "Extract runtime libraries" \
+                        -command "poApps::WriteRuntimeLibs"
+        }
         pack {*}[winfo children $tw.fr$row] -side top -anchor w -pady 2
 
-        set tmpList [list [list sett(usePoImg)] [list $sett(usePoImg)]]
+        set tmpList [list [list sett(useMuPdf)] [list $sett(useMuPdf)]]
+        lappend varList $tmpList
+        set tmpList [list [list sett(useFitsTcl)] [list $sett(useFitsTcl)]]
         lappend varList $tmpList
 
         return $varList

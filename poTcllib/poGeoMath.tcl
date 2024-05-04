@@ -1,5 +1,5 @@
 # Module:         poGeoMath
-# Copyright:      Paul Obermeier 2016-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2016-2023 / paul@poSoft.de
 # First Version:  2016 / 09 / 27
 #
 # Distributed under BSD license.
@@ -23,8 +23,8 @@ namespace eval poGeoMath {
         #
         # Convert angle "decDeg" into the DMS notation(i.e. Degree, Minute, Seconds).
         # If "asString" is true, the DMS value is returned as a string in the
-        # format (+-)D°M'S".
-        # Example: -32°15'1.23"
+        # format (+-)DÂ°M'S".
+        # Example: -32Â°15'1.23"
         #
         # Otherwise the DMS values are returned as a list in the
         # following order: { D M S Sign }
@@ -49,7 +49,7 @@ namespace eval poGeoMath {
             set signStr " "
         }
         if { $asString } {
-            return [format "%s%d°%d'%f\"" $signStr $degrees $minutes $seconds]
+            return [format "%s%dÂ°%d'%f\"" $signStr $degrees $minutes $seconds]
         } else {
             return [list $degrees $minutes $seconds $sign]
         }

@@ -1,5 +1,5 @@
 # Module:         poImgTig
-# Copyright:      Paul Obermeier 2017-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2017-2023 / paul@poSoft.de
 # First Version:  2017 / 07 / 30
 #
 # Distributed under BSD license.
@@ -293,13 +293,13 @@ namespace eval poImgTig {
             set pos [expr $pos + 0.052631578]
         }
       
-        # die inneren 12x3 K‰stchen ausblenden
+        # die inneren 12x3 K√§stchen ausblenden
         RGBForeColor [Color black]
         SetRect rc [XPos1 0.1842105263] [YPos1 0.1666666667] \
                    [XPos1 0.8157894737] [YPos1 0.8333333333]
         FillRect $canvasId rc
   
-        # 8 Farbbalken in die oberen 12x3 K‰stchen
+        # 8 Farbbalken in die oberen 12x3 K√§stchen
         set rc(top)    [YPos1 0.1666666667]
         set rc(bottom) [YPos  0.3666666667]
         set x1         [XPos  0.1842105263]
@@ -314,7 +314,7 @@ namespace eval poImgTig {
             set pos [expr $pos + 0.078947368]
         }
 
-        # 5 Graustufen in die darunter liegenden 12x2 K‰stchen
+        # 5 Graustufen in die darunter liegenden 12x2 K√§stchen
         set rc(top)    [YPos1 0.3666666667]
         set rc(bottom) [YPos  0.5]
         set x1         [XPos  0.1842105263]
@@ -329,7 +329,7 @@ namespace eval poImgTig {
             set pos [expr $pos + 0.126315789]
         }
       
-        # die "Senderkennung" umrahmt von 2 Weiﬂk‰stchen in die Zeile darunter
+        # die "Senderkennung" umrahmt von 2 Wei√ük√§stchen in die Zeile darunter
         RGBForeColor [Color black]
         SetRect rc [XPos 0.1842105263] [YPos 0.5] \
                    [XPos 0.2894736840] [YPos 0.5526315789]
@@ -342,7 +342,7 @@ namespace eval poImgTig {
                    [XPos 0.8157894737] [YPos 0.5666666667]
         FillRect $canvasId rc
         
-        # Pattern in die n‰chste Zeile
+        # Pattern in die n√§chste Zeile
         set y0 [YPos 0.5666666667]
         set y1 [YPos 0.6333333333]
         RGBForeColor [Color white]
@@ -365,7 +365,7 @@ namespace eval poImgTig {
         SetRect rc [XPos 0.7631578947] $y0 [XPos 0.8157894737] $y1
         FillRect $canvasId rc
         
-        # ein weiﬂes Kreuz in die Mitte
+        # ein wei√ües Kreuz in die Mitte
         RGBForeColor [Color white]
         set x0 [XPos  0.5]
         set y0 [YPos1 0.3666666667]
@@ -402,7 +402,7 @@ namespace eval poImgTig {
         RGBForeColor [Color white]
         DrawString $canvasId $testText
         
-        # Weiﬂbalken mit kurzem Schwarzimpuls in die n‰chste Zeile
+        # Wei√übalken mit kurzem Schwarzimpuls in die n√§chste Zeile
         RGBForeColor [Color white]
         set y0 [YPos 0.6333333333]
         set y1 [YPos 0.7]
@@ -452,7 +452,7 @@ namespace eval poImgTig {
         FrameCircle $canvasId rc
         SetPenSize 1
   
-        # vier Kreise f¸r die Ecken
+        # vier Kreise f√ºr die Ecken
         SetRect rc [XPos 0.028947368] [YPos 0.036666667] \
                    [XPos 0.181578947] [YPos 0.230000000]
         FrameCircle $canvasId rc
@@ -477,12 +477,12 @@ namespace eval poImgTig {
         RGBForeColor [Color black]
         FillRect $canvasId prc
       
-        # weiﬂer Rahmen
+        # wei√üer Rahmen
         array set rc [array get prc]
         RGBForeColor [Color white]
         FrameRect $canvasId rc
         
-        # weiﬂe horizontale Linien
+        # wei√üe horizontale Linien
         set pos 0.0625
         for {set idx 0} {$idx < 16} {incr idx} {
             set x0 [XPos $pos]
@@ -491,7 +491,7 @@ namespace eval poImgTig {
             set pos [expr $pos + 0.0625]
         }
       
-        # weiﬂe vertikale Linien
+        # wei√üe vertikale Linien
         set pos 0.0833333333
         for {set idx 0} {$idx < 16} {incr idx} {
             set y0 [YPos $pos]
@@ -500,7 +500,7 @@ namespace eval poImgTig {
             set pos [expr $pos + 0.0833333333]
         }
       
-        # weiﬂe Balken (n x 24) an die R‰nder
+        # wei√üe Balken (n x 24) an die R√§nder
         set y0 [expr $prc(top) +2]
         set y1 [expr $y0 +24]
         set y3 [expr $prc(bottom) -2]
@@ -540,12 +540,12 @@ namespace eval poImgTig {
         SetRect rc $x2 $y0 $x3 $y1
         FillRect $canvasId rc
         
-        # einen dicken weiﬂen Balken links
+        # einen dicken wei√üen Balken links
         SetRect rc [expr $prc(left) +2 +24 +1] [YPos 0.4166666666] \
                    [XPos 0.21875] [YPos 0.5833333333]
         FillRect $canvasId rc
         
-        # vier kleine weiﬂe Balken innen
+        # vier kleine wei√üe Balken innen
         set x0 [XPos 0.3125]
         set x1 [XPos 0.34375]
         set x2 [XPos 0.65625]
@@ -596,7 +596,7 @@ namespace eval poImgTig {
         set y2 [expr $y3 - 24]
         Draw4Rects $canvasId $x0 $x1 $x2 $x3 $y0 $y1 $y2 $y3
   
-        # farbige (R,G,B) K‰stchen in die Ecken der Pattern
+        # farbige (R,G,B) K√§stchen in die Ecken der Pattern
         RGBForeColor [Color blue]
         set x0 [expr $prc(left) + 2 + 25]
         set x1 [expr $x0 + 24]
@@ -734,7 +734,7 @@ namespace eval poImgTig {
                    [XPos  0.9375] [YPos  0.9166666666]
         FrameCircle $canvasId rc
         
-        # farbige K‰stchen in die Mitte
+        # farbige K√§stchen in die Mitte
         set y0 [YPos 0.3333333333]
         set y1 [YPos 0.375]
         set y2 [YPos 0.625]
@@ -831,7 +831,7 @@ namespace eval poImgTig {
         RGBForeColor [Color black]
         FillRect $canvasId prc
       
-        # weiﬂer Rahmen
+        # wei√üer Rahmen
         array set rc [array get prc]
         RGBForeColor [Color white]
         FrameRect $canvasId rc
@@ -866,13 +866,13 @@ namespace eval poImgTig {
       
         RGBForeColor [Color white]
   
-        # weiﬂe horizontale Linien alle 100 Pixel
+        # wei√üe horizontale Linien alle 100 Pixel
         for {set x 100} {$x < $rc(right)} {incr x 100} {
             MoveTo $x [expr $prc(top) +2]
             LineTo $canvasId $x [expr $prc(bottom) -3]
         }
       
-        # weiﬂe vertikale Linien alle 100 Pixel
+        # wei√üe vertikale Linien alle 100 Pixel
         for {set y 100} {$y < $rc(bottom)} {incr y 100} {
             MoveTo [expr $prc(left) +2] $y
             LineTo $canvasId [expr $prc(right) -3] $y
@@ -927,7 +927,7 @@ namespace eval poImgTig {
         update
         raise $win
         after 1000
-        set phImg [poWin Canvas2Img $canvasId]
+        set phImg [poWinCapture Canvas2Img $canvasId]
         destroy $win
         return $phImg
     }

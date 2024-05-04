@@ -1,5 +1,5 @@
 # Module:         poDiff
-# Copyright:      Paul Obermeier 1999-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 1999-2023 / paul@poSoft.de
 # First Version:  1999 / 08 / 12
 #
 # Distributed under BSD license.
@@ -14,6 +14,7 @@ namespace eval poTkDiff {
 
     namespace export Init LoadSettings SaveSettings
     namespace export ShowMainWin ParseCommandLine IsOpen
+    namespace export CloseAppWindow
     namespace export GetUsageMsg
 
     # The following variables must be set, before reading parameters and
@@ -57,13 +58,13 @@ namespace eval poTkDiff {
         append msg "  On Windows the exit status is stored in ERRORLEVEL.\n"
         append msg "\n"
         append msg "Options:\n"
-        append msg "--compare <mode>    : Compare files using specified mode.\n"
-        append msg "                      Possible modes are: size, date, content.\n"
-        append msg "                      Default: [poApps GetCmpModeString $sPo(cmpMode)].\n"
-        append msg "--ignoreeol <bool>  : Ignore EOL characters when comparing files in content mode.\n"
-        append msg "                      Default: $sPo(ignEolChar).\n"
-        append msg "--ignorehour <bool> : Ignore 1 hour differences when comparing files in date mode.\n"
-        append msg "                      Default: $sPo(ignOneHour).\n"
+        append msg "--compare <string> : Compare files using specified mode.\n"
+        append msg "                     Possible modes: \"size\", \"date\", \"content\".\n"
+        append msg "                     Default: \"[poMisc GetCmpModeString $sPo(cmpMode)]\".\n"
+        append msg "--ignoreeol <bool> : Ignore EOL characters when comparing in \"content\" mode.\n"
+        append msg "                     Default: $sPo(ignEolChar).\n"
+        append msg "--ignorehour <bool>: Ignore 1 hour differences when comparing in \"date\" mode.\n"
+        append msg "                     Default: $sPo(ignOneHour).\n"
 
         return $msg
     }
@@ -88,7 +89,7 @@ namespace eval poTkDiff {
                 set curOpt [string tolower [string trimleft $curParam "-"]]
                 if { $curOpt eq "compare" } {
                     incr curArg
-                    set sPo(cmpMode) [poApps GetCmpMode [lindex $argList $curArg]]
+                    set sPo(cmpMode) [poMisc GetCmpMode [lindex $argList $curArg]]
                 } elseif { $curOpt eq "ignoreeol" } {
                     incr curArg
                     set sPo(ignEolChar) [poMisc BoolAsInt [lindex $argList $curArg]]
@@ -145,6 +146,14 @@ namespace eval poTkDiff {
         variable sPo
 
         return [winfo exists $sPo(tw)]
+    }
+
+    proc CloseAppWindow {} {
+        variable sPo
+
+        if { [IsOpen] && [info commands tkdiff-CloseAppWindow] ne "" } {
+            tkdiff-CloseAppWindow
+        }
     }
 }
 

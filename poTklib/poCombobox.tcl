@@ -1,5 +1,5 @@
 # Module:         poCombobox
-# Copyright:      Paul Obermeier 2019-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2019-2023 / paul@poSoft.de
 # First Version:  2019 / 09 / 01
 #
 # Distributed under BSD license.
@@ -34,6 +34,10 @@ proc ttk::combobox::EscapeKey { key } {
 
 proc ttk::combobox::PrevNext { W dir } {
     set cur [$W current]
+    # Tk 8.7b1 returns empty string instead of -1.
+    if { $cur eq "" } {
+        set cur -1
+    }
 
     switch -- $dir {
         up {
@@ -73,7 +77,12 @@ proc ttk::combobox::CompleteEntry { W key } {
 
     set start 0
     if { [string match {*}$sCaseSearch $value* [$W get]] } {
-        set start [expr { [$W current] + 1 }]
+        set cur [$W current]
+        # Tk 8.7b1 returns empty string instead of -1.
+        if { $cur eq "" } {
+            set cur -1
+        }
+        set start [expr { $cur + 1 }]
     }
 
     set x [lsearch {*}$sCaseSearch -start $start $values $value*]
@@ -103,7 +112,11 @@ proc ttk::combobox::CompleteList { W key { start -1 } } {
     set key [EscapeKey $key]
 
     if { $start == -1 } {
-        set start [expr { [$W curselection] + 1 }]
+        set cursel [$W curselection]
+        if { $cursel eq "" } {
+            return
+        }
+        set start [expr { [lindex $cursel 0] + 1 }]
     }
 
     for { set idx $start } { $idx < [$W size] } { incr idx } {

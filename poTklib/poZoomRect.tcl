@@ -1,5 +1,5 @@
 # Module:         poZoomRect
-# Copyright:      Paul Obermeier 2013-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2013-2023 / paul@poSoft.de
 # First Version:  2013 / 03 / 01
 #
 # Distributed under BSD license.

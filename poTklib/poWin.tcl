@@ -1,5 +1,5 @@
 # Module:         poWin
-# Copyright:      Paul Obermeier 2000-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2000-2023 / paul@poSoft.de
 # First Version:  2000 / 10 / 22
 #
 # Distributed under BSD license.
@@ -24,9 +24,6 @@ namespace eval poWin {
     namespace export CreateHelpWin
     namespace export CreateListSelWin
     namespace export CreateListConfirmWin
-
-    namespace export CreateOneFileInfoWin
-    namespace export CreateTwoFileInfoWin
 
     namespace export SetScrolledTitle SetScrolledColor
     namespace export CreateScrolledWidget
@@ -103,8 +100,7 @@ namespace eval poWin {
         SetDateFormat "%Y-%m-%d"
         SetTimeFormat "%H:%M:%S"
 
-        set retVal [catch {package require scrollutil_tile} version]
-        set sPo(HaveScrollUtil) [expr ! $retVal]
+        set retVal [catch { package require "scrollutil_tile" } version]
     }
 
     proc GetFixedFont {} {
@@ -161,7 +157,7 @@ namespace eval poWin {
         pack $tw.fr -expand 1 -fill both
 
         $textWid insert end $helpStr
-        $textWid configure -state disabled -cursor top_left_arrow
+        $textWid configure -state disabled -cursor arrow
         focus $textWid
     }
 
@@ -282,164 +278,6 @@ namespace eval poWin {
         }
     }
 
-    proc DestroyOneFileInfoWin { w { phImg "" } } {
-        catch {image delete $phImg}
-        destroy $w
-    }
-
-    proc CreateOneFileInfoWin { fileOrDirName { phImg "" } } {
-        variable ns
-        variable infoWinNo
-
-        set tw .poWin_InfoWin$infoWinNo
-        incr infoWinNo
-        catch { destroy $tw }
-
-        toplevel $tw
-        wm title $tw "[poAppearance CutFilePath $fileOrDirName]"
-        wm resizable $tw true false
-
-        if { [file isdirectory $fileOrDirName] } {
-            set name [file tail $fileOrDirName]
-            set dirInfo [poMisc CountDirsAndFiles $fileOrDirName]
-            set msgStr "Directory $name: [lindex $dirInfo 0] subdirs, [lindex $dirInfo 1] files"
-            ttk::label $tw.l -text $msgStr
-            pack $tw.l -fill both -expand true
-        } else {
-            set attrList [poMisc FileInfo $fileOrDirName true]
-
-            # If the file is an image, but no thumbnail photo has been supplied
-            # as parameter, create a thumbnail image.
-            if { $phImg eq "" && [poImgMisc IsImageFile $fileOrDirName] } {
-                set thumbSize [poImgBrowse GetThumbSize]
-                set phImg [poImgMisc LoadImgScaled $fileOrDirName $thumbSize $thumbSize]
-            }
-
-            # If a thumbnail photo image has been supplied in phImg, show it.
-            # If a button procedure has been set (i.e. an image file with multiple images) show
-            # the image in a button. When pressing the button, additional information can be shown.
-            if { $phImg ne "" } {
-                ttk::frame $tw.fr
-                pack $tw.fr -fill both
-                set typeDict [poType GetFileType $fileOrDirName]
-                set viewCmd ""
-                # Check, if we have an image with sub-images.
-                if { [dict exists $typeDict subfmt] } {
-                    set fmt [dict get $typeDict subfmt]
-                    if { $fmt eq "gif" } {
-                        # Check for animated GIF's
-                        set numImgs [poImgDetail GetNumGifImgs $fileOrDirName]
-                        lappend attrList [list "Images in file" $numImgs]
-                        if { $numImgs > 1 } {
-                            set viewCmd poImgDetail::ShowAniGifDetail
-                        }
-                    } elseif { $fmt eq "ico" } {
-                        # Check for Windows Icons
-                        set numImgs [dict get $typeDict subimgs]
-                        lappend attrList [list "Images in file" $numImgs]
-                        if { $numImgs > 1 } {
-                            set viewCmd poImgDetail::ShowIcoDetail
-                        }
-                    } elseif { $fmt eq "jpeg" } {
-                        if { [dict exists $typeDict imgsubfmt] && \
-                             [dict get $typeDict imgsubfmt] eq "exif" } {
-                            lappend attrList [list "File contains" "EXIF tags"]
-                            set viewCmd poImgDetail::ShowExifDetail
-                        }
-                    }
-                }
-                if { $viewCmd ne "" } {
-                    ttk::button $tw.fr.l -image $phImg -command [list $viewCmd $fileOrDirName]
-                } else {
-                    ttk::label $tw.fr.l -image $phImg
-                }
-                pack $tw.fr.l -pady 2
-            }
-            # Generate left column with text labels.
-            set row 0
-            ttk::labelframe $tw.fr0 -text "File attributes"
-            pack $tw.fr0 -side top -expand 1 -fill both -padx 1
-            foreach listEntry $attrList {
-                ttk::label $tw.fr0.k$row -text [format "%s:" [lindex $listEntry 0]]
-                ttk::label $tw.fr0.v$row -text [lindex $listEntry 1]
-                grid  $tw.fr0.k$row -row $row -column 0 -sticky nw
-                grid  $tw.fr0.v$row -row $row -column 1 -sticky nw
-                incr row
-            }
-        }
-
-        bind $tw <Escape> "${ns}::DestroyOneFileInfoWin $tw $phImg"
-        wm protocol $tw WM_DELETE_WINDOW "${ns}::DestroyOneFileInfoWin $tw $phImg"
-        focus $tw
-        return $tw
-    }
-
-    proc DestroyTwoFileInfoWin { w { leftPhoto "" } { rightPhoto "" } } {
-        catch {image delete $leftPhoto}
-        catch {image delete $rightPhoto}
-        destroy $w
-    }
-
-    proc CreateTwoFileInfoWin { leftFile rightFile { leftPhoto "" } { rightPhoto "" } } {
-        variable ns
-        variable infoWinNo
-
-        set tw .poWin_InfoWin$infoWinNo
-        incr infoWinNo
-        catch { destroy $tw }
-
-        toplevel $tw
-        wm title $tw "[poAppearance CutFilePath $leftFile] vs. [poAppearance CutFilePath $rightFile]"
-        wm resizable $tw true false
-
-        set leftAttr  [poMisc FileInfo $leftFile  true]
-        set rightAttr [poMisc FileInfo $rightFile true]
-
-        # If the files are images, but no thumbnail photos have been supplied
-        # as parameter, create thumbnail images.
-        set thumbSize [poImgBrowse GetThumbSize]
-        if { $leftPhoto eq "" && [poImgMisc IsImageFile $leftFile] } {
-            set leftPhoto [poImgMisc LoadImgScaled $leftFile $thumbSize $thumbSize]
-        }
-        if { $rightPhoto eq "" && [poImgMisc IsImageFile $rightFile] } {
-            set rightPhoto [poImgMisc LoadImgScaled $rightFile $thumbSize $thumbSize]
-        }
-
-        # If thumbnail photo images have been supplied, show them.
-        if { $leftPhoto ne "" || $rightPhoto ne "" } {
-            ttk::frame $tw.fr
-            pack $tw.fr -fill both -expand 1
-            ttk::label $tw.fr.l -anchor center
-            ttk::label $tw.fr.r -anchor center
-            pack $tw.fr.l $tw.fr.r -pady 2 -side left -expand 1 -fill x
-            if { $leftPhoto ne "" } {
-                $tw.fr.l configure -image $leftPhoto
-            }
-            if { $rightPhoto ne "" } {
-                $tw.fr.r configure -image $rightPhoto
-            }
-        }
-
-        # Generate left column with text labels.
-        set row 0
-        ttk::labelframe $tw.fr0 -text "File attributes"
-        pack $tw.fr0 -side top -expand 1 -fill both -padx 1
-        foreach leftEntry $leftAttr rightEntry $rightAttr {
-            ttk::label $tw.fr0.kl$row -text [format "%s:" [lindex $leftEntry 0]]
-            ttk::label $tw.fr0.vl$row -text [lindex $leftEntry 1]
-            ttk::label $tw.fr0.vr$row -text [lindex $rightEntry 1]
-            grid  $tw.fr0.kl$row -row $row -column 0 -sticky nw
-            grid  $tw.fr0.vl$row -row $row -column 1 -sticky nw
-            grid  $tw.fr0.vr$row -row $row -column 2 -sticky nw
-            incr row
-        }
-
-        bind $tw <Escape> "${ns}::DestroyTwoFileInfoWin $tw $leftPhoto $rightPhoto"
-        wm protocol $tw WM_DELETE_WINDOW "${ns}::DestroyTwoFileInfoWin $tw $leftPhoto $rightPhoto"
-        focus $tw
-        return $tw
-    }
-
     proc SetScrolledColor { w bgColor { fgColor "" } } {
         variable sPo
 
@@ -528,7 +366,7 @@ namespace eval poWin {
         ttk::frame $w.par
         pack $w.par -side top -fill both -expand 1
 
-        if { $useAutoScroll && $sPo(HaveScrollUtil) } {
+        if { $useAutoScroll && [poMisc HavePkg "scrollutil_tile"] } {
             if { $titleStr ne "" } {
                 ttk::label $w.par.label -text "$titleStr" -anchor center
                 pack  $w.par.label -side top -fill x -expand 0
@@ -616,7 +454,7 @@ namespace eval poWin {
         ttk::frame $w.par
         pack $w.par -fill both -expand 1
 
-        if { $useAutoScroll && $sPo(HaveScrollUtil) } {
+        if { $useAutoScroll && [poMisc HavePkg "scrollutil_tile"] } {
             if { $titleStr ne "" } {
                 ttk::label $w.par.label -text "$titleStr" -borderwidth 2 -anchor center
                 pack  $w.par.label -side top -fill x -expand 0
@@ -891,6 +729,9 @@ namespace eval poWin {
     }
  
     proc _RecursiveEnableWidget { w onOff } {
+        if { ! [winfo exists $w] } {
+            return
+        }
         if { [poWinRollUp IsElement $w] } {
             poWinRollUp EnableElement $w $onOff
         } elseif { [llength [winfo children $w]] > 0 } {
@@ -977,7 +818,12 @@ namespace eval poWin {
             $tw.fr1.e configure -font $fontName
         }
 
-        $tw.fr1.e selection range 0 end
+        set dotPos [string last "." ${ns}::entryBoxtemp]
+        if { $dotPos < 0 } {
+            set dotPos end
+        }
+        $tw.fr1.e selection range 0 $dotPos
+        $tw.fr1.e icursor $dotPos
 
         bind $tw <KeyPress-Return> "${ns}::EvalCommand $cmd"
         bind $tw <KeyPress-Escape> "${ns}::DestroyEntryBox"
@@ -1126,7 +972,12 @@ namespace eval poWin {
         if { $fontName ne "" } {
             $tw.fr.e configure -font $fontName
         }
-        $tw.fr.e selection range 0 end
+        set dotPos [string last "." $str]
+        if { $dotPos < 0 } {
+            set dotPos end
+        }
+        $tw.fr.e selection range 0 $dotPos
+        $tw.fr.e icursor $dotPos
 
         pack $tw.fr
         pack $tw.fr.e
@@ -1157,11 +1008,7 @@ namespace eval poWin {
             }
         }
 
-        if { $entryBoxFlag } {
-            return $entryBoxText
-        } else {
-            return ""
-        }
+        return [list $entryBoxFlag $entryBoxText]
     }
 
     proc GetOkBitmap {} {
@@ -1209,8 +1056,6 @@ namespace eval poWin {
     proc CreateStandardBitmaps {} {
         variable pkgInt
 
-        set usedBmpTypes [poBmpData GetBmpType]
-        poBmpData SetBmpType bitmaps
         if { ! [info exists pkgInt(bmpOk)] } {
             set pkgInt(bmpOk) [::poBmpData::ok "darkgreen"]
         }
@@ -1229,7 +1074,6 @@ namespace eval poWin {
         if { ! [info exists pkgInt(bmpEmpty)] } {
             set pkgInt(bmpEmpty) [::poBmpData::none]
         }
-        poBmpData SetBmpType $usedBmpTypes
     }
 
     proc CreateStatusWidget { w { addProgressBar false } } {
@@ -1245,14 +1089,15 @@ namespace eval poWin {
 
         ttk::label $par.icon -anchor w
         ttk::label $par.text -text "Status messages" -anchor w
-        pack $par.icon -side left
-        pack $par.text -side left -fill x -expand 1
+        grid $par.icon -row 0 -column 0 -sticky w
+        grid $par.text -row 0 -column 1 -sticky news
 
         if { $addProgressBar } {
             set pkgInt(progress,$par) 0
             ttk::progressbar $par.progress -variable ${ns}::pkgInt(progress,$par)
-            pack $par.progress -side right
+            grid $par.progress -row 0 -column 2 -sticky e
         }
+        grid columnconfigure $par 1 -weight 1
         return $par
     }
 
@@ -1274,6 +1119,13 @@ namespace eval poWin {
         }
         if { [winfo exists $par.text] } {
             $par.text configure -text $str
+        }
+        if { [poAppearance GetUseMsgBox $icon] } {
+            if { $::tcl_platform(os) eq "Darwin" } {
+                tk_messageBox -icon $tkIcon -title "$icon message" -type ok -message "$str"
+            } else {
+                tk_messageBox -icon $tkIcon -title "$icon message" -type ok -parent [poWin GetRootWidget $par] -message "$str"
+            }
         }
         update
     }
@@ -1853,7 +1705,7 @@ namespace eval poWin {
         return $fr.e
     }
 
-    proc ShowPkgInfo { pkgDict } {
+    proc ShowPkgInfo { pkgDict { msg "" } } {
         set tw .poWin_PkgInfoWin
         catch { destroy $tw }
 
@@ -1864,15 +1716,25 @@ namespace eval poWin {
         ttk::frame $tw.fr0
         grid $tw.fr0 -row 0 -column 0 -sticky news
         set rows [dict size $pkgDict]
+        set numLines 0
+        set lineLen  40
+        if { $msg ne "" } {
+            foreach line [split $msg "\n"] {
+                incr numLines
+                if { [string length $line] > $lineLen } {
+                    set lineLen [string length $line]
+                }
+            }
+        }
         set textId [CreateScrolledText $tw.fr0 true "" -wrap none \
-                   -width 40 -height [expr $rows + 1]]
+                   -width $lineLen -height [expr $rows + $numLines + 1]]
         set maxLen 0
         foreach pkg [dict keys $pkgDict] {
             if { [string length $pkg] > $maxLen } {
                 set maxLen [string length $pkg]
             }
         }
-        foreach pkg [dict keys $pkgDict] {
+        foreach pkg [lsort -dictionary [dict keys $pkgDict]] {
             set msgStr [format "%-${maxLen}s: %s\n" $pkg [dict get $pkgDict $pkg version]]
             if { [dict get $pkgDict $pkg loaded] } {
                 set tag loaded
@@ -1883,6 +1745,10 @@ namespace eval poWin {
         }
         $textId tag configure loaded    -background lightgreen
         $textId tag configure notloaded -background red
+
+        if { $msg ne "" } {
+            $textId insert end $msg
+        }
         $textId configure -state disabled
 
         grid columnconfigure $tw 0 -weight 1

@@ -1,5 +1,5 @@
 # Module:         poHistogram
-# Copyright:      Paul Obermeier 2013-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2013-2023 / paul@poSoft.de
 # First Version:  2013 / 10 / 26
 #
 # Distributed under BSD license.
@@ -232,7 +232,7 @@ namespace eval poHistogram {
 
         poToolbar AddButton $toolfr [::poBmpData::save] \
                   "${ns}::AskSaveHistogramValues $winNum" "Save histogram table to CSV file"
-        if { [poApps HavePkg "cawt"] } {
+        if { [poMisc HavePkg "cawt"] } {
             poToolbar AddButton $toolfr [::poBmpData::sheetIn] \
                       "${ns}::HistogramValuesToExcel $winNum" "Load histogram table to Excel"
         }

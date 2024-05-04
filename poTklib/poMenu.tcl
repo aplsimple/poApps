@@ -1,5 +1,5 @@
 # Module:         poMenu
-# Copyright:      Paul Obermeier 2019-2020 / paul@poSoft.de
+# Copyright:      Paul Obermeier 2019-2023 / paul@poSoft.de
 # First Version:  2019 / 08 / 10
 #
 # Distributed under BSD license.
@@ -40,14 +40,27 @@ namespace eval poMenu {
     }
 
     proc AddRecentFileList { menuId cmd args } {
-        foreach { f exists } [poAppearance GetRecentFileList true] {
+        set extList [list]
+        set params  [list]
+        set foundExt false
+        foreach value $args {
+            if { $value eq "-extensions" } {
+                set foundExt true
+            } elseif { $foundExt } {
+                set extList $value
+                set foundExt false
+            } else {
+               lappend params $value
+           }
+        }
+        foreach { f exists } [poAppearance GetRecentFiles -check true -extensions $extList] {
             if { $exists } {
                 set bmp [poWin GetOkBitmap]
             } else {
                 set bmp [poWin GetCancelBitmap]
             }
-            if { [llength $args] > 0 } {
-                AddCommand $menuId $f "" [list $cmd $f $args] -image $bmp -compound left
+            if { [llength $params] > 0 } {
+                AddCommand $menuId $f "" [list $cmd $f $params] -image $bmp -compound left
             } else {
                 AddCommand $menuId $f "" [list $cmd $f] -image $bmp -compound left
             }
@@ -55,7 +68,7 @@ namespace eval poMenu {
     }
 
     proc AddRecentDirList { menuId cmd args } {
-        foreach { f exists } [poAppearance GetRecentDirList true] {
+        foreach { f exists } [poAppearance GetRecentDirs true] {
             if { $exists } {
                 set bmp [poWin GetOkBitmap]
             } else {
