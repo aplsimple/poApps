@@ -1,6 +1,6 @@
 # What's that
 
-This is a fork of *poApps* applications. The *poApps* is developed and maintained by [Paul Obermeier](http://www.posoft.de/contact.html). Changes to the original code can be seen in GIT commit "v2.12.0 dir lists added", mainly poApps.tcl and poDiff.tcl.
+This is a fork of *poApps* applications. The *poApps* is developed and maintained by [Paul Obermeier](http://www.posoft.de/contact.html). Changes to the original code can be seen in GIT commit [v2.12.0 dir lists added](https://github.com/aplsimple/poApps/commit/d2b625ce168520c8689089b7e5cc325549fee0d1), mainly *poApps.tcl* and *poDiff.tcl*.
 
 The only purpose of this fork is to provide the comparison of directories by lists.
 
