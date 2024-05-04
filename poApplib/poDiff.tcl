@@ -52,7 +52,7 @@ namespace eval poDiff {
         set sPo(optSessionOnStartup) ""
 
         # Add command line options which should not be expanded by file matching.
-        poApps AddFileMatchIgnoreOption "filematch" 
+        poApps AddFileMatchIgnoreOption "filematch"
     }
 
     # The following functions are used for loading/storing poDiff specific
@@ -539,6 +539,18 @@ namespace eval poDiff {
         }
     }
 
+# (apl
+    proc StartGUIDiff2 { leftListbox rightListbox { useHexDumpDiff false } } {
+        variable sPo
+        set msec [clock milliseconds]
+        if {[info exists sPo(_MSEC_)] && \
+        [expr {($msec-$sPo(_MSEC_))<400}]} {
+          StartGUIDiff $leftListbox $rightListbox $useHexDumpDiff
+        }
+        set sPo(_MSEC_) $msec
+    }
+# apl)
+
     proc StartGUIDiff { leftListbox rightListbox { useHexDumpDiff false } } {
         variable sPo
         variable ns
@@ -946,7 +958,8 @@ namespace eval poDiff {
             }
             return 3
         }
-        if { ! [file isdirectory $sPo(dir1)] } {
+        if { ! [file isdirectory $sPo(dir1)] && \
+        [string tolower [file extension $sPo(dir1)]] ne ".podiff"} {
             if { [poApps UseBatchMode] } {
                 puts "Error: Directory $sPo(dir1) does not exist."
                 return 4
@@ -960,7 +973,8 @@ namespace eval poDiff {
                 _CreateDir $sPo(dir1) 1
             }
         }
-        if { ! [file isdirectory $sPo(dir2)] } {
+        if { ! [file isdirectory $sPo(dir2)] && \
+        [string tolower [file extension $sPo(dir2)]] ne ".podiff"} {
             if { [poApps UseBatchMode] } {
                 puts "Error: Directory $sPo(dir2) does not exist."
                 return 5
@@ -1098,7 +1112,7 @@ namespace eval poDiff {
             } else {
                 set bmp [poWin GetCancelBitmap]
             }
-            poMenu AddCommand $menuId $sessionName "" "${ns}::SelectSession [list $sessionName]" -image $bmp -compound left 
+            poMenu AddCommand $menuId $sessionName "" "${ns}::SelectSession [list $sessionName]" -image $bmp -compound left
         }
     }
 
@@ -1178,10 +1192,13 @@ namespace eval poDiff {
                                0 "Modification time" "center" } \
                     -exportselection false \
                     -stretch 0 \
-                    -stripebackground [poAppearance GetStripeColor] \
+                    -foreground [ttk::style config . -foreground] \
+                    -background [ttk::style config . -background] \
+                    -stripebackground [ttk::style config . -troughcolor] \
                     -selectmode extended \
                     -labelcommand tablelist::sortByColumn \
                     -showseparators true]
+#!                    -stripebackground [poAppearance GetStripeColor]
         $tableId columnconfigure 0 -sortmode dictionary
         $tableId columnconfigure 1 -sortmode integer
         $tableId columnconfigure 2 -sortmode dictionary
@@ -1198,9 +1215,12 @@ namespace eval poDiff {
                            0 "Modification time" "center" } \
                 -exportselection false \
                 -stretch 0 \
-                -stripebackground [poAppearance GetStripeColor] \
+                -foreground [ttk::style config . -foreground] \
+                -background [ttk::style config . -background] \
+                -stripebackground [ttk::style config . -troughcolor] \
                 -selectmode extended \
                 -showseparators true]
+#!                -stripebackground [poAppearance GetStripeColor]
         foreach tableId $ids {
             $tableId columnconfigure 0 -align $sPo(columnAlign)
         }
@@ -1422,7 +1442,7 @@ namespace eval poDiff {
         menu $genSettMenu -tearoff 0
         poMenu AddCommand $genSettMenu "Appearance"   "" [list poSettings ShowGeneralSettWin "Appearance"]
         poMenu AddCommand $genSettMenu "File types"   "" [list poSettings ShowGeneralSettWin "File types"]
-        poMenu AddCommand $genSettMenu "Edit/Preview" "" [list poSettings ShowGeneralSettWin "Edit/Preview"] 
+        poMenu AddCommand $genSettMenu "Edit/Preview" "" [list poSettings ShowGeneralSettWin "Edit/Preview"]
         poMenu AddCommand $genSettMenu "Logging"      "" [list poSettings ShowGeneralSettWin "Logging"]
 
         $settMenu add separator
@@ -1480,7 +1500,7 @@ namespace eval poDiff {
         set prefrR $sPo(infoPaneR).prefr
         set tblfrR $sPo(infoPaneR).tblfr
         ttk::frame $prefrR
-        ttk::frame $tblfrR 
+        ttk::frame $tblfrR
         pack  $prefrR -expand 0 -fill both
         pack  $tblfrR -expand 0 -fill both
 
@@ -1528,7 +1548,7 @@ namespace eval poDiff {
             poDragAndDrop AddCanvasBinding $listboxId ${ns}::SetDirectoryByDrop
         }
 
-        set listboxList [CreateSyncTablelist $bf.difffr "Different left" "Different right"] 
+        set listboxList [CreateSyncTablelist $bf.difffr "Different left" "Different right"]
 
         set leftListbox  [lindex $listboxList 0]
         set rightListbox [lindex $listboxList 1]
@@ -1570,6 +1590,11 @@ namespace eval poDiff {
             bind $bodyTag <Key-E>  "${ns}::StartEditor 1"
             bind $bodyTag <Key-h>  "${ns}::StartHexEditor 0"
             bind $bodyTag <Key-H>  "${ns}::StartHexEditor 1"
+# (apl
+            bind $bodyTag <Return>  "${ns}::StartGUIDiff $sPo(diffListL) $sPo(diffListR)"
+# bugfix of <Double-1>
+            bind $bodyTag <Button-1>  "${ns}::StartGUIDiff2 $sPo(diffListL) $sPo(diffListR)"
+# apl)
             bind $bodyTag <Key-d>  "${ns}::StartGUIDiff $sPo(diffListL) $sPo(diffListR)"
             bind $bodyTag <Key-i>  "${ns}::ShowFileInfoWin"
             bind $bodyTag <Key-I>  "${ns}::ShowFileInfoWin"
@@ -1891,13 +1916,13 @@ namespace eval poDiff {
     proc MoveLeftDiffToRightDiff {} {
         variable sPo
 
-        ManipFiles $sPo(diffListL) $sPo(diffListR) $sPo(dir1) $sPo(dir2) 1 $sPo(onlyListR)
+        ManipFiles $sPo(diffListL) $sPo(diffListR) $sPo(dir1) $sPo(dir2) 1 $sPo(onlyListR) yes
     }
 
     proc MoveRightDiffToLeftDiff {} {
         variable sPo
 
-        ManipFiles $sPo(diffListR) $sPo(diffListL) $sPo(dir2) $sPo(dir1) 1 $sPo(onlyListL)
+        ManipFiles $sPo(diffListR) $sPo(diffListL) $sPo(dir2) $sPo(dir1) 1 $sPo(onlyListL) yes
     }
 
     proc MoveSearchFromSide { { side "" } } {
@@ -1950,13 +1975,13 @@ namespace eval poDiff {
     proc CopyLeftDiffToRightDiff {} {
         variable sPo
 
-        ManipFiles $sPo(diffListL) $sPo(diffListR) $sPo(dir1) $sPo(dir2) 0 "something"
+        ManipFiles $sPo(diffListL) $sPo(diffListR) $sPo(dir1) $sPo(dir2) 0 "something" yes
     }
 
     proc CopyRightDiffToLeftDiff {} {
         variable sPo
 
-        ManipFiles $sPo(diffListR) $sPo(diffListL) $sPo(dir2) $sPo(dir1) 0 "something"
+        ManipFiles $sPo(diffListR) $sPo(diffListL) $sPo(dir2) $sPo(dir1) 0 "something" yes
     }
 
     proc CopySearchFromSide { { side "" } } {
@@ -1972,7 +1997,7 @@ namespace eval poDiff {
         }
     }
 
-    proc ManipFiles { fromListbox toListbox fromRoot toRoot opCode diffListbox } {
+    proc ManipFiles { fromListbox toListbox fromRoot toRoot opCode diffListbox {forDiff no}} {
         variable sPo
         variable sDelIndList
 
@@ -2041,10 +2066,17 @@ namespace eval poDiff {
             set fileName1 [AbsPath $fromEntry $fromRoot]
             set len [string length $fromRoot]
             set relPath [string trimleft [string range $fileName1 $len end] $dirSep]
-            set relPath [poMisc QuoteTilde $relPath]            
+            set relPath [poMisc QuoteTilde $relPath]
             set fileName2 [file join $toRoot $relPath]
+# (apl
+            if {$forDiff} {
+              set fileName2 [GetListEntry $toListbox $ind]
+            } else {
+              set fileName2 [file join $toRoot $relPath]
+            }
+# apl)
             set dirName2 [file dirname $fileName2]
-            if { $sPo(immediateUpdate) } { 
+            if { $sPo(immediateUpdate) } {
                 if { $opCode == $opMove } {
                     WriteInfoStr $widgetName "$toDo: Moving file $fileName1 to $fileName2 ..." "Watch"
                 } elseif { $opCode == $opCopy } {
@@ -2056,10 +2088,12 @@ namespace eval poDiff {
 
             if { $opCode != $opDel } {
                 if { ! [file isdirectory $dirName2] } {
-                    file mkdir $dirName2
+# (apl"
+                    catch {file mkdir $dirName2}
+# apl)
                 }
                 file copy -force $fileName1 $fileName2
-                # Do not delete the entry from the fromListbox, 
+                # Do not delete the entry from the fromListbox,
                 # if it's the search window and we copy the file.
                 if { $sPo(immediateUpdate) } {
                     if { ! ($toListbox eq "" && $opCode == $opCopy) } {
@@ -2096,7 +2130,7 @@ namespace eval poDiff {
                 }
                 file delete $fileName1
             } elseif { $opCode == $opCopy } {
-                if { [IsIdentListbox $fromListbox] || [IsIdentListbox $toListbox] } { 
+                if { [IsIdentListbox $fromListbox] || [IsIdentListbox $toListbox] } {
                 } else {
                     AddToIdentLog $fileName1 $fileName2
                 }
@@ -2123,7 +2157,7 @@ namespace eval poDiff {
                     }
                 }
             }
-            if { $sPo(immediateUpdate) || ( ( $toDo -1 ) % 100 == 0 ) } { 
+            if { $sPo(immediateUpdate) || ( ( $toDo -1 ) % 100 == 0 ) } {
                 UpdateFileCount
                 poWin UpdateStatusProgress $sPo(StatusWidget,diff) $fileCount
             }
@@ -2420,7 +2454,7 @@ namespace eval poDiff {
 
         ttk::frame $tw.fr0
         set numFiles [llength $sPo(identLog)]
-        set listboxList [CreateSyncTablelist $tw.fr0 "Identical left ($numFiles files)" "Identical right ($numFiles files)"] 
+        set listboxList [CreateSyncTablelist $tw.fr0 "Identical left ($numFiles files)" "Identical right ($numFiles files)"]
 
         set leftListbox  [lindex $listboxList 0]
         set rightListbox [lindex $listboxList 1]
@@ -3069,6 +3103,40 @@ namespace eval poDiff {
         ClearFileLists
         ClearDelIndLists
 
+# (apl
+        set bylists [expr { \
+          [string tolower [file extension $sPo(dir1)]] eq ".podiff" && \
+          [string tolower [file extension $sPo(dir2)]] eq ".podiff"}]
+        poLog Info "DiffDir $sPo(dir1) -- $sPo(dir2)"
+        if { [string length $sPo(dir1)] == 0 } {
+            tk_messageBox -message "No left directory specified." \
+                          -type ok -icon warning
+            return
+        }
+        if { [string length $sPo(dir2)] == 0 } {
+            tk_messageBox -message "No right directory specified." \
+                          -type ok -icon warning
+            return
+        }
+        if { ! [file isdirectory $sPo(dir1)] && !$bylists} {
+            tk_messageBox -message "$sPo(dir1) is not a directory" \
+                          -type ok -icon warning
+            return
+        }
+        if { ! [file isdirectory $sPo(dir2)] && !$bylists } {
+            tk_messageBox -message "$sPo(dir2) is not a directory" \
+                          -type ok -icon warning
+            return
+        }
+        set sPo(stopScan)    0
+        set sPo(readErrors)  0
+        set sPo(ignLogDirL)  [list]
+        set sPo(ignLogFileL) [list]
+        set sPo(ignLogDirR)  [list]
+        set sPo(ignLogFileR) [list]
+        set sPo(identLog)    [list]
+        set sPo(errorLog)    [list]
+
         # The following counter variables are needed only for optSync mode.
         set sPo(numFilesCopied)  0
         set sPo(numFilesDeleted) 0
@@ -3088,18 +3156,39 @@ namespace eval poDiff {
         if { $sPo(appWindowClosed) } {
             return
         }
-        ScanRecursive "diff" $sPo(dir1) $sPo(dir1) ignLogDirL ignLogFileL "l"
-        if { $sPo(appWindowClosed) } {
-            return
+        set fname1 $sPo(dir1)
+        set fname2 $sPo(dir2)
+        if { $bylists } {
+          set chan [open $fname1]
+          set list1 [split [read $chan] \n]
+          close $chan
+          set chan [open $fname2]
+          set list2 [split [read $chan] \n]
+          close $chan
+        } else {
+          set list1 [list $sPo(dir1)]
+          set list2 [list $sPo(dir2)]
         }
-        ScanRecursive "diff" $sPo(dir2) $sPo(dir2) ignLogDirR ignLogFileR "r"
-        if { $sPo(appWindowClosed) } {
-            return
+        foreach sPo(dir1) $list1 sPo(dir2) $list2 {
+          if {[file isdirectory $sPo(dir1)] && [file isdirectory $sPo(dir2)]} {
+            InvalidateCache
+            ScanRecursive "diff" $sPo(dir1) $sPo(dir1) ignLogDirL ignLogFileL "l"
+            if { $sPo(appWindowClosed) } {
+                return
+            }
+            ScanRecursive "diff" $sPo(dir2) $sPo(dir2) ignLogDirR ignLogFileR "r"
+            if { $sPo(appWindowClosed) } {
+                return
+            }
+            DiffFileLists
+            if { $sPo(appWindowClosed) } {
+                return
+            }
+          }
         }
-        DiffFileLists
-        if { $sPo(appWindowClosed) } {
-            return
-        }
+        set sPo(dir1) $fname1
+        set sPo(dir2) $fname2
+# apl)
 
         $sPo(tw) configure -cursor arrow
         if { $sPo(stopScan) } {
@@ -3684,10 +3773,13 @@ namespace eval poDiff {
                                0 "Occurences"        "center" } \
                     -exportselection false \
                     -stretch 0 \
-                    -stripebackground [poAppearance GetStripeColor] \
+                    -foreground [ttk::style config . -foreground] \
+                    -background [ttk::style config . -background] \
+                    -stripebackground [ttk::style config . -troughcolor] \
                     -selectmode extended \
                     -labelcommand tablelist::sortByColumn \
                     -showseparators true]
+#!                    -stripebackground [poAppearance GetStripeColor]
         $tableId columnconfigure 1 -sortmode integer
         $tableId columnconfigure 3 -sortmode integer
         $tableId columnconfigure 0 -align $sPo(columnAlign)
@@ -3722,7 +3814,7 @@ namespace eval poDiff {
         bind $bodyTag <KeyRelease-Down>  "${ns}::ShowFileCont $tableId $nbId $textId $previewId $infoId true"
         bind $bodyTag <KeyRelease-Left>  "${ns}::ToggleSearchTabs $nbId -1"
         bind $bodyTag <KeyRelease-Right> "${ns}::ToggleSearchTabs $nbId  1"
-        
+
         bind $nbId <<NotebookTabChanged>> "${ns}::ShowFileCont $tableId $nbId $textId $previewId $infoId false"
 
         bind $bodyTag <<RightButtonPress>> \
@@ -4455,7 +4547,7 @@ namespace eval poDiff {
         catch { unset sCacheRight }
         catch { unset sFileListLeft }
         catch { unset sFileListRight }
-        
+
         set sFileListLeft  [list]
         set sFileListRight [list]
     }
@@ -5075,7 +5167,7 @@ namespace eval poDiff {
         }
 
         if { $sPo(optSessionOnStartup) ne "" } {
-            if { [GetSessionName $sPo(optSessionOnStartup)] ne "" } { 
+            if { [GetSessionName $sPo(optSessionOnStartup)] ne "" } {
                 SelectSession $sPo(optSessionOnStartup)
             } else {
                 if { [poApps UseBatchMode] } {
@@ -5156,4 +5248,11 @@ namespace eval poDiff {
 }
 
 poDiff Init
+# (apl
+namespace eval poDiff {
+  set sPo(appWindowClosed) no
+}
+after 500 {after 500 poDiff::TimeDiffDir}
+# apl)
+
 catch {poLog Debug "Loaded Package poApplib (Module [info script])"}

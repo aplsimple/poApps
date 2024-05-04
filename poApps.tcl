@@ -22,7 +22,7 @@ namespace eval poApps {
     namespace export StartApp ExitApp GetToplevel
     namespace export GetAppName GetAppDescription GetAppDescriptionList
     namespace export IsValidAppName IsValidAppDescription
-    namespace export GetUsageMsg PrintUsage 
+    namespace export GetUsageMsg PrintUsage
     namespace export GetImgUsageMsg PrintImgUsage
     namespace export GetFileUsageMsg PrintFileUsage
     namespace export PrintPkgInfo GetCopyright
@@ -1430,6 +1430,7 @@ if { $tcl_platform(platform) eq "windows" } {
 set osDir "${osPlatform}${osBits}"
 
 set auto_path [linsert $auto_path 0 $scriptDir]
+set auto_path [linsert $auto_path 0 [file join $scriptDir Externals scrollutil]]
 
 # Initialize external packages
 # Note, that cawt must be initialized before poApplib.
@@ -1442,6 +1443,40 @@ wm withdraw .
 
 poApps InitPackages tdom jpeg scrollutil_tile tablelist_tile \
                     tkdnd poTcllib poTklib poApplib
+# (apl
+poApps InitPackages apave
+namespace eval poToolhelp {
+  proc Init { tw { bgColor yellow } { fgColor black } { xoff 0 } { yoff 20 } } {
+    variable pkgInt
+    set pkgInt(tw) $tw
+    ::baltip configure -under [expr {$yoff?3:-16}] \
+      -fg #000 -bg #dede95 -padx 5 -pady 4 -padding 0 -bd 1 -relief raised
+  }
+  proc HideToolhelp {} {}
+  proc AddBinding { w msg args } {
+    variable pkgInt
+    if {![info exists pkgInt(tw)]} {Init stub}
+    set options {}
+    foreach { key value } $args {
+      switch -exact $key {
+        switch -- [winfo class $w] {
+          Text   {append options " -tag $value -under -16"}
+          Canvas {append options " -ctag $value -under -16"}
+        }
+      }
+    }
+    # most poSoft tips should be shown under a host widget,
+    # but some under the mouse pointer (poShowLogo etc.)
+    foreach underpointer {poShowLogo} {
+      if {[string first $underpointer $w]>-1} {
+        append options " -under -16"
+        break
+      }
+    }
+    ::baltip tip $w $msg {*}$options
+  }
+}
+# apl)
 
 # Initialize photo image related packages. Use special packages first,
 # as the matching of image file formats occurs in reverse order.
@@ -1488,6 +1523,8 @@ set optNoSaveOnExit  false
 set optZipFile       ""
 set optZipLevel      6
 set optCfgDir        [file join [poMisc GetHomeDir] ".[poApps GetAppName]"]
+set optColorScheme   -2
+set optHue           0
 set argList          [list]
 
 # Parse command line for general options.
@@ -1510,6 +1547,12 @@ while { $curArg < $argc } {
                 exit 1
             }
             set optCfgDir [poMisc FileSlashName $tmpDir]
+        } elseif { $curOpt eq "cs" } {
+            incr curArg
+            set optColorScheme [lindex $argv $curArg]
+        } elseif { $curOpt eq "hue" } {
+            incr curArg
+            set optHue [lindex $argv $curArg]
         } elseif { $curOpt eq "version" } {
             set optPrintVersion true
         } elseif { $curOpt eq "help" } {
@@ -1584,6 +1627,17 @@ while { $curArg < $argc } {
     }
     incr curArg
 }
+
+# (apl
+#ARGS1: -cs 5 -hue 10
+source [file join [file dirname [info script]] Externals apave baltip baltip.tcl]
+if {$optColorScheme > -2 && $optColorScheme < 23} {
+  source [file join [file dirname [info script]] Externals apave apave.tcl]
+  apave::obj csSet $optColorScheme . -doit
+  if {$optHue} {apave::obj csToned $optColorScheme $optHue yes}
+  ttk::style config . -troughcolor
+}
+# apl)
 
 # Try to load settings file.
 if { ! [file isdirectory $optCfgDir] } {
